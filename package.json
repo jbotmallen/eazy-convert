@@ -16,7 +16,8 @@
     "build:web": "vite build",
     "build:desktop": "npm run clean && vite build && npm run build:main && electron-builder",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "overrides": {
     "minimatch@3.1.5": {
@@ -96,6 +97,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.36.0",
     "@eslint/js": "^9.39.1",
     "@types/ffprobe-static": "^2.0.3",
     "@types/html-to-docx": "^1.8.0",
@@ -116,6 +118,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1",
-    "wait-on": "^9.0.4"
+    "wait-on": "^9.0.4",
+    "wrangler": "^4.88.0"
   }
 }
