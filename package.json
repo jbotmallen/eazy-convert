@@ -13,6 +13,7 @@
     "build:main": "tsc -p electron/tsconfig.json",
     "clean": "rimraf dist dist-electron release --glob",
     "build": "npm run clean && vite build && npm run build:main && electron-builder",
+    "build:web": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
