@@ -2,6 +2,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { LandingPage } from "@/pages/LandingPage";
+import { AppHomePage } from "@/pages/AppHomePage";
 import { ImageConverterPage } from "@/pages/ImageConverterPage";
 import { VideoConverterPage } from "@/pages/VideoConverterPage";
 import { AudioConverterPage } from "@/pages/AudioConverterPage";
@@ -17,7 +18,23 @@ import { BackgroundLayout } from "@/components/ui/background-layout";
 import { FloatingFAQ } from "@/components/FloatingFAQ";
 import { ProcessingProvider } from "@/context/ProcessingProvider";
 
+const landingOnly = import.meta.env.VITE_LANDING_ONLY === "true";
+
 function App() {
+  if (landingOnly) {
+    return (
+      <Router>
+        <BackgroundLayout>
+          <main className="flex-1">
+            <Routes>
+              <Route path="*" element={<LandingPage landingOnly />} />
+            </Routes>
+          </main>
+        </BackgroundLayout>
+      </Router>
+    );
+  }
+
   return (
     <ProcessingProvider>
       <Router>
@@ -26,6 +43,7 @@ function App() {
           <main className="flex-1 pt-18 pb-5">
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/app" element={<AppHomePage />} />
               <Route path="/images" element={<ImageConverterPage />} />
               <Route path="/videos" element={<VideoConverterPage />} />
               <Route path="/audio" element={<AudioConverterPage />} />

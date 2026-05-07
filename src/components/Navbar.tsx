@@ -181,7 +181,7 @@ export function Navbar() {
       >
         {/* Logo */}
         <Link
-          to="/"
+          to="/app"
           onClick={(e) => { if (isProcessing) e.preventDefault(); }}
           className={cn(
             "flex items-center gap-2 min-w-28",
@@ -390,7 +390,7 @@ export function Navbar() {
         {/* Right: GitHub + Theme */}
         <div className="flex justify-end min-w-28 gap-2">
           <Link
-            to="https://github.com"
+            to="https://github.com/jbotmallen/eazy-convert"
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-muted/10 hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all active:scale-95 shadow-lg shadow-black/10"
