@@ -12,8 +12,9 @@
     "dev:electron": "wait-on tcp:5173 && npm run build:main && cross-env NODE_ENV=development electron .",
     "build:main": "tsc -p electron/tsconfig.json",
     "clean": "rimraf dist dist-electron release --glob",
-    "build": "npm run clean && vite build && npm run build:main && electron-builder",
+    "build": "vite build",
     "build:web": "vite build",
+    "build:desktop": "npm run clean && vite build && npm run build:main && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview"
   },
