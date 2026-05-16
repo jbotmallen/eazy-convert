@@ -30,8 +30,8 @@ jobs:
           # Don't leave the auth token in .git/config for later steps to read.
           persist-credentials: false
 
-      # Node must be set up BEFORE pnpm: action-setup runs pnpm's self-installer
-      # with whatever Node is on PATH, and pnpm 11 requires Node >= 22.13.
+      # Node 22: pnpm 11 and the build toolchain require Node >= 22.13. This
+      # is the runtime for all `run:` steps below.
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -39,8 +39,14 @@ jobs:
 
       # action-setup reads the `packageManager` field in package.json, so the
       # pnpm version is pinned by the repo, not by this workflow.
+      # standalone: install the self-contained pnpm executable (@pnpm/exe),
+      # which bundles its own Node. Without it, action-setup runs pnpm's
+      # npm-package self-installer under the runner's Actions Node (v20),
+      # which fails pnpm 11's engines.node >= 22.13 check.
       - name: Install pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          standalone: true
 
       # --frozen-lockfile: fail if pnpm-lock.yaml and package.json have drifted;
       # never re-resolve. Install scripts run only for the allowlist in
