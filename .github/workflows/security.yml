@@ -27,14 +27,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-
+      # Node must be set up BEFORE pnpm: action-setup runs pnpm's self-installer
+      # with whatever Node is on PATH, and pnpm 11 requires Node >= 22.13.
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: "22"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
       # --frozen-lockfile makes pnpm-lock.yaml authoritative: it refuses to
       # install if package.json and the lockfile have drifted, and verifies
@@ -66,7 +67,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Verify Electron major is current
         run: |
