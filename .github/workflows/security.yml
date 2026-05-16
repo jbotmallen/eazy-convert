@@ -1,0 +1,110 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly Monday 06:00 UTC — catches newly disclosed CVEs against pinned deps.
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+# Least privilege: read-only by default; only the CodeQL job widens this.
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # All third-party actions pinned to commit SHA, not a moving tag —
+      # blocks a compromised action repo from floating in via `@v4`.
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      # --frozen-lockfile makes pnpm-lock.yaml authoritative: it refuses to
+      # install if package.json and the lockfile have drifted, and verifies
+      # every tarball against the lockfile integrity hash.
+      - name: Install dependencies (lockfile-strict)
+        run: pnpm install --frozen-lockfile
+
+      - name: Curated CVE audit (security-audit.mjs)
+        run: node scripts/security-audit.mjs
+
+      - name: pnpm audit (production, fail on high)
+        run: pnpm audit --prod --audit-level high
+
+      - name: Check outdated production deps (report only)
+        if: always()
+        continue-on-error: true
+        run: pnpm outdated --prod || true
+
+  electron-version:
+    name: Electron version watermark
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+
+      - name: Verify Electron major is current
+        run: |
+          set -euo pipefail
+          REQUIRED_MIN_MAJOR=33
+          INSTALLED=$(node -p "require('./package.json').devDependencies.electron")
+          INSTALLED_MAJOR=$(echo "$INSTALLED" | sed -E 's/[^0-9.]//g' | cut -d. -f1)
+          echo "Electron pinned at $INSTALLED (major $INSTALLED_MAJOR), required >= $REQUIRED_MIN_MAJOR"
+          if [ "$INSTALLED_MAJOR" -lt "$REQUIRED_MIN_MAJOR" ]; then
+            echo "::error::Electron major $INSTALLED_MAJOR is below required $REQUIRED_MIN_MAJOR"
+            exit 1
+          fi
+
+  codeql:
+    name: CodeQL static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          category: "/language:${{ matrix.language }}"
