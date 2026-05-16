@@ -1,0 +1,10 @@
+{
+  // Cloudflare Workers static-asset deploy for the web/landing build.
+  // `pnpm run build:web` (Vite) outputs to ./dist; this Worker serves that
+  // directory as static assets. It has no server-side script.
+  "name": "eazy-convert",
+  "compatibility_date": "2026-05-16",
+  "assets": {
+    "directory": "./dist"
+  }
+}
