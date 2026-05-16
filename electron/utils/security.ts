@@ -88,13 +88,38 @@ export function assertExistingDocumentPath(filePath: string, allowedExts: readon
   }
 }
 
-export function assertDocumentFileWithinLimit(filePath: string): void {
-  const stat = fs.statSync(filePath);
+export function assertStatWithinDocumentLimit(stat: fs.Stats): void {
   if (!stat.isFile()) {
     throw new Error("Document file not found.");
   }
   if (stat.size > MAX_DOCUMENT_FILE_SIZE_BYTES) {
     throw new Error("Document is too large. Maximum allowed size is 100 MiB.");
+  }
+}
+
+export function assertDocumentFileWithinLimit(filePath: string): void {
+  assertStatWithinDocumentLimit(fs.statSync(filePath));
+}
+
+// Reads a file fully while enforcing the document size limit against the same
+// file descriptor used for the read. Opening once and validating via fstat
+// closes the time-of-check/time-of-use gap — the file cannot be swapped for a
+// different (e.g. oversized) one between the size check and the read.
+export function readFileWithinDocumentLimit(filePath: string): Buffer {
+  const fd = fs.openSync(filePath, "r");
+  try {
+    const stat = fs.fstatSync(fd);
+    assertStatWithinDocumentLimit(stat);
+    const buffer = Buffer.alloc(stat.size);
+    let offset = 0;
+    while (offset < stat.size) {
+      const bytesRead = fs.readSync(fd, buffer, offset, stat.size - offset, offset);
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    return offset === stat.size ? buffer : buffer.subarray(0, offset);
+  } finally {
+    fs.closeSync(fd);
   }
 }
 

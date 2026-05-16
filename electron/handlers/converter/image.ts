@@ -13,6 +13,7 @@ import {
   assertDocumentFileWithinLimit,
   assertDocumentPathList,
   isAllowedDocumentPath,
+  readFileWithinDocumentLimit,
 } from "../../utils/security.js";
 import { getFfmpegPath, getUnpackedPath, validatePath } from "../../utils/helpers.js";
 import { getUniqueName, timestamp } from "../document/utils.js";
@@ -315,11 +316,22 @@ export function registerImageHandlers() {
     const removalOptions = parseBackgroundRemovalOptions(options);
     const inputPath = resolveRegisteredFilePath(senderId, inputId);
     const inputExt = assertImageInput(inputPath);
-    assertDocumentFileWithinLimit(inputPath);
     const outputPath = getBackgroundRemovalOutputPath(inputPath, removalOptions.outputFormat);
     if (!validatePath(outputPath)) throw new Error("Invalid output path.");
 
-    const inputBytes = fs.statSync(inputPath).size;
+    const inputMimeType = getBackgroundRemovalInputMimeType(inputExt);
+    let directInputBuffer: Buffer | null = null;
+    let inputBytes: number;
+    if (inputMimeType) {
+      // Read race-free: the size-limit check and the read share one file
+      // descriptor, so the file cannot be swapped between check and use.
+      directInputBuffer = readFileWithinDocumentLimit(inputPath);
+      inputBytes = directInputBuffer.length;
+    } else {
+      // Transcoded by ffmpeg below, which fails on oversized/invalid input.
+      assertDocumentFileWithinLimit(inputPath);
+      inputBytes = fs.statSync(inputPath).size;
+    }
     activeBackgroundRemovals.add(senderId);
     cancelledBackgroundRemovals.delete(senderId);
     const disposeBgCancel = registerCancellable(senderId, () => {
@@ -332,8 +344,7 @@ export function registerImageHandlers() {
       if (cancelledBackgroundRemovals.has(senderId)) throw new Error("Image background removal cancelled.");
 
       event.sender.send("conversion-progress", 20);
-      const inputMimeType = getBackgroundRemovalInputMimeType(inputExt);
-      const inputBuffer = inputMimeType ? fs.readFileSync(inputPath) : await convertImageToPngBuffer(inputPath);
+      const inputBuffer = directInputBuffer ?? (await convertImageToPngBuffer(inputPath));
       const inputArrayBuffer = inputBuffer.buffer.slice(
         inputBuffer.byteOffset,
         inputBuffer.byteOffset + inputBuffer.byteLength,
