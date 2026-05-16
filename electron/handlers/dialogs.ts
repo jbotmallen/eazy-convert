@@ -2,7 +2,7 @@ import { ipcMain, dialog, BrowserWindow } from "electron";
 import { registerFilePath } from "../utils/fileRegistry.js";
 
 export function registerDialogHandlers(mainWindow: BrowserWindow) {
-  ipcMain.handle("dialog:openFile", async () => {
+  ipcMain.handle("dialog:openFile", async (event) => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       properties: ["openFile"],
       filters: [
@@ -25,27 +25,10 @@ export function registerDialogHandlers(mainWindow: BrowserWindow) {
       ],
     });
 
-    return canceled ? null : registerFilePath(filePaths[0]);
+    return canceled ? null : registerFilePath(event.sender.id, filePaths[0]);
   });
 
-  ipcMain.handle(
-    "dialog:saveFile",
-    async (
-      _,
-      options: {
-        defaultPath?: string;
-        filters?: { name: string; extensions: string[] }[];
-      },
-    ) => {
-      const { canceled, filePath } = await dialog.showSaveDialog(
-        mainWindow,
-        options,
-      );
-      return canceled ? null : filePath;
-    },
-  );
-
-  ipcMain.handle("dialog:openDocFile", async (_, type: "pdf" | "docx" | "md" | "image") => {
+  ipcMain.handle("dialog:openDocFile", async (event, type: "pdf" | "docx" | "md" | "image") => {
     const filterMap: Record<string, { name: string; extensions: string[] }[]> = {
       pdf: [{ name: "PDF", extensions: ["pdf"] }],
       docx: [{ name: "Word Document", extensions: ["docx"] }],
@@ -56,10 +39,10 @@ export function registerDialogHandlers(mainWindow: BrowserWindow) {
       properties: ["openFile"],
       filters: filterMap[type] ?? [],
     });
-    return canceled ? null : registerFilePath(filePaths[0]);
+    return canceled ? null : registerFilePath(event.sender.id, filePaths[0]);
   });
 
-  ipcMain.handle("dialog:openDocFiles", async (_, type: "pdf" | "image" | "video" | "audio") => {
+  ipcMain.handle("dialog:openDocFiles", async (event, type: "pdf" | "image" | "video" | "audio") => {
     const filterMap: Record<string, { name: string; extensions: string[] }[]> = {
       pdf:   [{ name: "PDF",    extensions: ["pdf"] }],
       image: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp"] }],
@@ -70,6 +53,6 @@ export function registerDialogHandlers(mainWindow: BrowserWindow) {
       properties: ["openFile", "multiSelections"],
       filters: filterMap[type] ?? [],
     });
-    return canceled ? [] : filePaths.map(registerFilePath);
+    return canceled ? [] : filePaths.map((filePath) => registerFilePath(event.sender.id, filePath));
   });
 }

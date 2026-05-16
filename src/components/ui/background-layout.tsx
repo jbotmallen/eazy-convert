@@ -10,7 +10,7 @@ export function BackgroundLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute bottom-0 right-1/4 h-125 w-125 translate-y-1/2 rounded-full bg-primary/10 dark:bg-primary/5 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 w-full flex flex-col min-h-screen">
+      <div className="relative z-10 w-full flex flex-col min-h-dvh h-full">
         {children}
       </div>
     </div>

@@ -12,9 +12,9 @@ import {
   assertExistingDocumentPath,
 } from "../../utils/security.js";
 import { resolveRegisteredFilePath } from "../../utils/fileRegistry.js";
+import { registerProducedOutput } from "../../utils/outputRegistry.js";
 
 const PDF_EXTS = [".pdf"] as const;
-const IMAGE_EXTS = [".jpg", ".jpeg", ".png"] as const;
 const MAX_PDF_PAGE_COUNT = 500;
 
 function assertPdfPageCountWithinLimit(count: number, label = "PDF"): void {
@@ -72,15 +72,23 @@ async function renderPdfPages(inputPath: string, scale = 2.0): Promise<string[]>
     await win.loadFile(tmpHtml);
     win.webContents.on("will-navigate", (event) => event.preventDefault());
 
+    // SECURITY: every interpolated value is JSON.stringify'd so a path
+    // containing a quote, backtick, or other JS-string-breaking byte cannot
+    // escape the string literal and execute attacker-controlled code in the
+    // offscreen window.
+    const pdfjsUrlLiteral  = JSON.stringify(pdfjsUrl);
+    const workerUrlLiteral = JSON.stringify(workerUrl);
+    const pdfUrlLiteral    = JSON.stringify(pdfUrl);
+    const scaleLiteral     = JSON.stringify(scale);
     const images: string[] = await win.webContents.executeJavaScript(`
       (async () => {
-        const pdfjsLib = await import('${pdfjsUrl}');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '${workerUrl}';
-        const pdf = await pdfjsLib.getDocument('${pdfUrl}').promise;
+        const pdfjsLib = await import(${pdfjsUrlLiteral});
+        pdfjsLib.GlobalWorkerOptions.workerSrc = ${workerUrlLiteral};
+        const pdf = await pdfjsLib.getDocument(${pdfUrlLiteral}).promise;
         const pages = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: ${scale} });
+          const viewport = page.getViewport({ scale: ${scaleLiteral} });
           const canvas = document.createElement('canvas');
           canvas.width  = viewport.width;
           canvas.height = viewport.height;
@@ -100,8 +108,8 @@ async function renderPdfPages(inputPath: string, scale = 2.0): Promise<string[]>
 
 export function registerPdfHandlers() {
   // Get page count of a PDF
-  ipcMain.handle("document:page-count", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:page-count", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, PDF_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const pdf = await loadPdfWithinPageLimit(inputPath);
@@ -109,8 +117,8 @@ export function registerPdfHandlers() {
   });
 
   // Merge multiple PDFs into one
-  ipcMain.handle("document:merge", async (_, inputPaths: string[]) => {
-    inputPaths = inputPaths.map(resolveRegisteredFilePath);
+  ipcMain.handle("document:merge", async (event, inputPaths: string[]) => {
+    inputPaths = inputPaths.map((inputPath) => resolveRegisteredFilePath(event.sender.id, inputPath));
     assertDocumentPathList(inputPaths, PDF_EXTS, 2);
     inputPaths.forEach((filePath) => assertDocumentFileWithinLimit(filePath));
     const merged = await PDFDocument.create();
@@ -125,14 +133,15 @@ export function registerPdfHandlers() {
     const outDir = path.dirname(inputPaths[0]);
     const outPath = getUniqueName(outDir, `Merged_${timestamp()}.pdf`);
     fs.writeFileSync(outPath, await merged.save());
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Split a PDF to a page range
   ipcMain.handle(
     "document:split",
-    async (_, inputPath: string, fromPage: number, toPage: number) => {
-      inputPath = resolveRegisteredFilePath(inputPath);
+    async (event, inputPath: string, fromPage: number, toPage: number) => {
+      inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
       assertExistingDocumentPath(inputPath, PDF_EXTS);
       assertDocumentFileWithinLimit(inputPath);
       const src = await loadPdfWithinPageLimit(inputPath);
@@ -154,42 +163,14 @@ export function registerPdfHandlers() {
       const outDir = path.dirname(inputPath);
       const outPath = getUniqueName(outDir, `${base}_p${fromPage}-p${toPage}.pdf`);
       fs.writeFileSync(outPath, await dest.save());
+      registerProducedOutput(outPath);
       return outPath;
     },
   );
 
-  // Convert images to a single PDF
-  ipcMain.handle("document:images-to-pdf", async (_, imagePaths: string[]) => {
-    imagePaths = imagePaths.map(resolveRegisteredFilePath);
-    assertDocumentPathList(imagePaths, IMAGE_EXTS);
-    imagePaths.forEach((imagePath) => assertDocumentFileWithinLimit(imagePath));
-    assertPdfPageCountWithinLimit(imagePaths.length, "Output PDF");
-    const pdf = await PDFDocument.create();
-
-    for (const imgPath of imagePaths) {
-      const buffer = fs.readFileSync(imgPath);
-      const ext = path.extname(imgPath).toLowerCase();
-      let img;
-      if (ext === ".jpg" || ext === ".jpeg") {
-        img = await pdf.embedJpg(buffer);
-      } else if (ext === ".png") {
-        img = await pdf.embedPng(buffer);
-      } else {
-        throw new Error(`Unsupported image format: ${ext}. Use JPG or PNG.`);
-      }
-      const page = pdf.addPage([img.width, img.height]);
-      page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
-    }
-
-    const outDir = path.dirname(imagePaths[0]);
-    const outPath = getUniqueName(outDir, `Images_${timestamp()}.pdf`);
-    fs.writeFileSync(outPath, await pdf.save());
-    return outPath;
-  });
-
   // Convert PDF to plain text
-  ipcMain.handle("document:pdf-to-text", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:pdf-to-text", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, PDF_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const buffer = fs.readFileSync(inputPath);
@@ -202,13 +183,14 @@ export function registerPdfHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.txt`);
     fs.writeFileSync(outPath, result.text, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert PDF to HTML — renders each page as an image so the output is
   // visually accurate rather than relying on imperfect text extraction.
-  ipcMain.handle("document:pdf-to-html", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:pdf-to-html", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, PDF_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     await loadPdfWithinPageLimit(inputPath);
@@ -243,14 +225,15 @@ ${imgTags}
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${title}.html`);
     fs.writeFileSync(outPath, html, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert PDF to DOCX via text extraction → html-to-docx.
   // Note: this is text-only — visual layout cannot be preserved without
   // an external tool such as LibreOffice.
-  ipcMain.handle("document:pdf-to-docx", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:pdf-to-docx", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, PDF_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const buffer = fs.readFileSync(inputPath);
@@ -274,12 +257,13 @@ ${imgTags}
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.docx`);
     fs.writeFileSync(outPath, docxBuffer as unknown as Buffer);
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert PDF pages to images → ZIP archive
-  ipcMain.handle("document:pdf-to-images", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:pdf-to-images", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, PDF_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     await loadPdfWithinPageLimit(inputPath);
@@ -295,6 +279,7 @@ ${imgTags}
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${baseName}_images.zip`);
     fs.writeFileSync(outPath, zipBuffer);
+    registerProducedOutput(outPath);
     return outPath;
   });
 }

@@ -1,12 +1,12 @@
 import { useState, useCallback } from "react";
 import { ALLOWED_EXTS } from "@/pages/document-converter/constants";
+import { showErrorToast } from "@/lib/utils";
 
 type FileType = "pdf" | "image" | "docx" | "md";
 
 export function useDocumentFileState(fileType: FileType, multi: boolean) {
   const [files, setFiles] = useState<FileRef[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const addFiles = useCallback(
     (newPaths: FileRef[]) => {
@@ -32,8 +32,8 @@ export function useDocumentFileState(fileType: FileType, multi: boolean) {
         const picked = await window.api.openDocFile(fileType);
         if (picked) addFiles([picked]);
       }
-    } catch {
-      setToast({ message: "Could not open file picker — restart the app and try again.", type: "error" });
+    } catch (err) {
+      showErrorToast(err, "Could not open file picker. Try again or restart the app.");
     }
   }, [fileType, multi, addFiles]);
 
@@ -57,14 +57,14 @@ export function useDocumentFileState(fileType: FileType, multi: boolean) {
         allowed.some((ext) => f.name.toLowerCase().endsWith(ext)),
       );
       if (valid.length === 0) {
-        setToast({ message: `Only ${allowed.join(", ")} files accepted here.`, type: "error" });
+        showErrorToast(`Only ${allowed.join(", ")} files accepted here.`);
         return;
       }
       try {
         const refs = await Promise.all(valid.map((f) => window.api.registerDroppedFile(f)));
         addFiles(refs);
-      } catch {
-        setToast({ message: "Could not register dropped files.", type: "error" });
+      } catch (err) {
+        showErrorToast(err, "Could not register dropped files.");
       }
     },
     [fileType, addFiles],
@@ -90,8 +90,6 @@ export function useDocumentFileState(fileType: FileType, multi: boolean) {
     files,
     setFiles,
     isDragOver,
-    toast,
-    setToast,
     handlePickFiles,
     handleDragOver,
     handleDragLeave,

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Youtube, Download, Loader2, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
+import { Youtube, Download, Loader2, CheckCircle, ExternalLink, AlertTriangle, FileOutput, Gauge, Link } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldLabel } from "@/components/ui/field-label";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,8 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { useProcessing } from "@/context/useProcessing";
+import { showErrorToast, showSuccessToast } from "@/lib/utils";
 
 const DEP_DOWNLOAD_URLS: Record<string, string> = {
   "Visual C++ Redistributable 2019+": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
@@ -30,7 +31,6 @@ export function YoutubeDownloaderPage() {
   });
   const [status, setStatus] = useState<"idle" | "downloading" | "success" | "error">("idle");
   const [progress, setProgress] = useState(0);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [depCheck, setDepCheck] = useState<{ ok: boolean; missing?: string } | null>(null);
   const [quality, setQuality] = useState("best");
   const [ytFormats, setYtFormats] = useState<number[]>([]);
@@ -99,7 +99,7 @@ export function YoutubeDownloaderPage() {
   const handleDownload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) {
-      setToast({ message: "Please enter a YouTube URL.", type: "error" });
+      showErrorToast("Please enter a YouTube URL.");
       return;
     }
 
@@ -112,7 +112,7 @@ export function YoutubeDownloaderPage() {
       const result = await window.api.downloadYoutube(url, format, quality);
       if (result.success) {
         setStatus("success");
-        setToast({ message: "Saved to your Downloads folder.", type: "success" });
+        showSuccessToast("Saved to your Downloads folder.");
         setUrl("");
       }
     } catch (error: unknown) {
@@ -121,7 +121,7 @@ export function YoutubeDownloaderPage() {
         setProgress(0);
       } else {
         setStatus("error");
-        setToast({ message: (error as Error)?.message || "Download failed.", type: "error" });
+        showErrorToast(error, "Download failed.");
         setProgress(0);
       }
     } finally {
@@ -136,7 +136,7 @@ export function YoutubeDownloaderPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full border-border bg-card/40 shadow-2xl backdrop-blur-md overflow-hidden font-sans">
         <CardHeader className="text-center pb-8 border-b border-border/50 bg-muted/5">
@@ -181,9 +181,7 @@ export function YoutubeDownloaderPage() {
           <CardContent className="pt-10">
             <form onSubmit={handleDownload} className="space-y-10">
               <div className="space-y-4">
-                <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-                  YouTube URL
-                </label>
+                <FieldLabel icon={Link}>YouTube URL</FieldLabel>
                 <div className="relative">
                   <Input
                     value={url}
@@ -198,9 +196,7 @@ export function YoutubeDownloaderPage() {
 
               <div className={format === "mp4" ? "grid grid-cols-2 gap-4" : ""}>
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-                    Output Format
-                  </label>
+                  <FieldLabel icon={FileOutput}>Output Format</FieldLabel>
                   <Select
                     value={format}
                     onValueChange={(value) => setFormat(value as "mp4" | "mp3")}
@@ -218,9 +214,7 @@ export function YoutubeDownloaderPage() {
 
                 {format === "mp4" && (
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-                      Output Quality
-                    </label>
+                    <FieldLabel icon={Gauge}>Output Quality</FieldLabel>
                     <Select
                       value={quality}
                       onValueChange={setQuality}
@@ -321,7 +315,6 @@ export function YoutubeDownloaderPage() {
         </CardFooter>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

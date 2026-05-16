@@ -4,19 +4,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, FileCode2, AlignLeft, FileDown, Hash, FileJson2, Loader2, FolderOpen, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
-import { cn } from "@/lib/utils";
+import { cn, showErrorToast } from "@/lib/utils";
 
 type OutputFormat = "html" | "text" | "pdf" | "markdown" | "json";
 
 const OUTPUT_OPTIONS: { id: OutputFormat; label: string; ext: string; icon: React.ElementType }[] = [
-  { id: "html",     label: "HTML",     ext: ".html", icon: FileCode2 },
-  { id: "text",     label: "Text",     ext: ".txt",  icon: AlignLeft },
-  { id: "pdf",      label: "PDF",      ext: ".pdf",  icon: FileDown  },
-  { id: "markdown", label: "Markdown", ext: ".md",   icon: Hash      },
-  { id: "json",     label: "JSON",     ext: ".json", icon: FileJson2 },
+  { id: "html", label: "HTML", ext: ".html", icon: FileCode2 },
+  { id: "text", label: "Text", ext: ".txt", icon: AlignLeft },
+  { id: "pdf", label: "PDF", ext: ".pdf", icon: FileDown },
+  { id: "markdown", label: "Markdown", ext: ".md", icon: Hash },
+  { id: "json", label: "JSON", ext: ".json", icon: FileJson2 },
 ];
 
 const VALID_FORMATS = OUTPUT_OPTIONS.map((o) => o.id);
@@ -31,12 +30,12 @@ export function WordConverterPage() {
   const [outputPath, setOutputPath] = useState<string | null>(null);
   const { setIsProcessing } = useProcessing();
 
-  const { files, setFiles, isDragOver, toast, setToast, handlePickFiles, handleDragOver, handleDragLeave, handleDrop } =
+  const { files, setFiles, isDragOver, handlePickFiles, handleDragOver, handleDragLeave, handleDrop } =
     useDocumentFileState("docx", false);
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Select a DOCX file first.", type: "error" });
+      showErrorToast("Select a DOCX file first.");
       return;
     }
     setStatus("processing");
@@ -45,17 +44,17 @@ export function WordConverterPage() {
     try {
       let result: string;
       switch (outputFormat) {
-        case "html":     result = await window.api.document.docxToHtml(files[0].id);     break;
-        case "text":     result = await window.api.document.docxToText(files[0].id);     break;
-        case "pdf":      result = await window.api.document.docxToPdf(files[0].id);      break;
+        case "html": result = await window.api.document.docxToHtml(files[0].id); break;
+        case "text": result = await window.api.document.docxToText(files[0].id); break;
+        case "pdf": result = await window.api.document.docxToPdf(files[0].id); break;
         case "markdown": result = await window.api.document.docxToMarkdown(files[0].id); break;
-        case "json":     result = await window.api.document.docxToJson(files[0].id);     break;
+        case "json": result = await window.api.document.docxToJson(files[0].id); break;
       }
       setOutputPath(result);
       setStatus("success");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Conversion failed.", type: "error" });
+      showErrorToast(err, "Conversion failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -65,12 +64,20 @@ export function WordConverterPage() {
   const ActiveIcon = activeOpt.icon;
   const filename = files[0]?.name;
   const outputFilename = outputPath?.split(/[/\\]/).pop();
+  const handleShowInFolder = async () => {
+    if (!outputPath) return;
+    try {
+      await window.api.document.showInFolder(outputPath);
+    } catch (err) {
+      showErrorToast(err);
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -100,7 +107,7 @@ export function WordConverterPage() {
                   }}
                   disabled={status === "processing"}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-2xl border transition-all duration-200 text-center max-w-32",
+                    "flex-1 flex flex-col items-center justify-center gap-1.5 px-2 py-3 h-20 w-full rounded-2xl border transition-all duration-200 text-center",
                     isActive
                       ? "bg-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10"
                       : "bg-card/30 border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30",
@@ -180,7 +187,7 @@ export function WordConverterPage() {
                   <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{outputFilename}</p>
                   <button
                     type="button"
-                    onClick={() => window.api.document.showInFolder(outputPath)}
+                    onClick={handleShowInFolder}
                     className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline mt-1.5"
                   >
                     <FolderOpen className="h-3 w-3" />
@@ -213,7 +220,6 @@ export function WordConverterPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

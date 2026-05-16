@@ -1,14 +1,22 @@
 import { motion } from "framer-motion";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, FolderOpen } from "lucide-react";
+import { showErrorToast } from "@/lib/utils";
 
 interface SuccessMessageProps {
   outputLabel: string;
   outputPath: string;
-  onShowInFolder: (path: string) => void;
+  onShowInFolder: (path: string) => void | Promise<void>;
 }
 
 export function SuccessMessage({ outputLabel, outputPath, onShowInFolder }: SuccessMessageProps) {
   const fileName = (p: string) => p.split(/[\\/]/).pop() ?? p;
+  const handleShowInFolder = async () => {
+    try {
+      await onShowInFolder(outputPath);
+    } catch (err) {
+      showErrorToast(err);
+    }
+  };
 
   return (
     <motion.div
@@ -28,9 +36,10 @@ export function SuccessMessage({ outputLabel, outputPath, onShowInFolder }: Succ
           </p>
         </div>
         <button
-          onClick={() => onShowInFolder(outputPath)}
-          className="text-xs font-black uppercase tracking-widest text-primary hover:underline shrink-0"
+          onClick={handleShowInFolder}
+          className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-primary hover:underline shrink-0"
         >
+          <FolderOpen className="h-3.5 w-3.5" />
           Show in folder
         </button>
       </div>

@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { FileStack, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { useProcessing } from "@/context/useProcessing";
 
 import type { OperationId, Status } from "./document-converter/types";
@@ -12,6 +11,7 @@ import { OperationSelector } from "./document-converter/OperationSelector";
 import { FileList } from "./document-converter/FileList";
 import { PageRangeSelector } from "./document-converter/PageRangeSelector";
 import { SuccessMessage } from "./document-converter/SuccessMessage";
+import { showErrorToast, showSuccessToast } from "@/lib/utils";
 
 export function DocumentConverterPage() {
   const [activeOp, setActiveOp] = useState<OperationId>("merge");
@@ -22,7 +22,6 @@ export function DocumentConverterPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [outputPath, setOutputPath] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const { setIsProcessing } = useProcessing();
 
   const op = OPERATIONS.find((o: { id: string; }) => o.id === activeOp)!;
@@ -77,7 +76,7 @@ export function DocumentConverterPage() {
         if (picked) addFiles([picked], op);
       }
     } catch {
-      setToast({ message: "Could not open file picker — restart the app and try again.", type: "error" });
+      showErrorToast("Could not open file picker. Try again or restart the app.");
     }
   };
 
@@ -104,7 +103,7 @@ export function DocumentConverterPage() {
 
     if (valid.length === 0) {
       const extList = allowed.join(", ");
-      setToast({ message: `Only ${extList} files are accepted here.`, type: "error" });
+      showErrorToast(`Only ${extList} files are accepted here.`);
       return;
     }
 
@@ -112,7 +111,7 @@ export function DocumentConverterPage() {
       const refs = await Promise.all(valid.map((f) => window.api.registerDroppedFile(f)));
       addFiles(refs, op);
     } catch {
-      setToast({ message: "Could not register dropped files.", type: "error" });
+      showErrorToast("Could not register dropped files.");
     }
   };
 
@@ -132,7 +131,7 @@ export function DocumentConverterPage() {
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Please select a file first.", type: "error" });
+      showErrorToast("Please select a file first.");
       return;
     }
 
@@ -156,9 +155,6 @@ export function DocumentConverterPage() {
           result = await window.api.document.split(files[0].id, from, to);
           break;
         }
-        case "images-to-pdf":
-          result = await window.api.document.imagesToPdf(files.map((file) => file.id));
-          break;
         case "markdown-to-pdf":
           result = await window.api.document.markdownToPdf(files[0].id);
           break;
@@ -171,23 +167,24 @@ export function DocumentConverterPage() {
       }
       setOutputPath(result);
       setStatus("success");
-      setToast({ message: "Done! Saved next to your source file.", type: "success" });
+      showSuccessToast("Done! Saved next to your source file.");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Conversion failed.", type: "error" });
+      showErrorToast(err, "Conversion failed.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="container relative z-10 mx-auto max-w-5xl px-4 py-12">
+    <div className="container relative z-10 mx-auto max-w-6xl px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-10 text-center"
       >
-        <h1 className="mb-3 text-5xl font-black tracking-tighter uppercase italic text-primary">
+        <h1 className="mb-3 flex items-center justify-center gap-3 text-5xl font-black tracking-tighter uppercase italic text-primary">
+          <FileStack className="h-12 w-12" />
           Documents
         </h1>
         <p className="text-lg font-medium text-muted-foreground italic">
@@ -257,7 +254,8 @@ export function DocumentConverterPage() {
                 </AnimatePresence>
 
                 {activeOp === "merge" && files.length === 1 && (
-                  <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest text-center">
+                  <p className="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground/60 uppercase tracking-widest text-center">
+                    <Info className="h-3.5 w-3.5" />
                     Add at least one more PDF to enable merging.
                   </p>
                 )}
@@ -290,9 +288,6 @@ export function DocumentConverterPage() {
         </AnimatePresence>
       </div>
 
-      {toast && (
-        <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
     </div>
   );
 }

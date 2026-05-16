@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import sanitizeHtmlLib from "sanitize-html";
 import type { BrowserWindow } from "electron";
 
 export const DOCUMENT_CSP = [
@@ -14,6 +15,7 @@ export const DOCUMENT_CSP = [
   "base-uri 'none'",
   "form-action 'none'",
   "frame-src 'none'",
+  "frame-ancestors 'none'",
 ].join("; ");
 
 export function timestamp(): string {
@@ -33,13 +35,44 @@ export function getUniqueName(dir: string, name: string): string {
   return candidate;
 }
 
+// DOM-parser-based sanitiser (sanitize-html). Replaces a regex sanitiser that
+// was correct for current mammoth/marked output but brittle against future
+// mXSS variants. The allowlist below covers everything mammoth (DOCX → HTML)
+// and marked (Markdown → HTML) actually emit; anything else is dropped.
+//
+// Still defence-in-depth: the rendering BrowserWindow disables JavaScript,
+// runs sandboxed with contextIsolation, and the emitted HTML carries a CSP
+// with `script-src 'none'` and `object-src 'none'`.
+const SANITIZE_OPTIONS: sanitizeHtmlLib.IOptions = {
+  allowedTags: [
+    "a", "b", "blockquote", "br", "code", "col", "colgroup", "del", "div",
+    "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "ins", "li",
+    "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "table", "tbody",
+    "td", "tfoot", "th", "thead", "tr", "u", "ul",
+  ],
+  allowedAttributes: {
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["class", "id"],
+  },
+  // Block javascript:, vbscript:, file:, blob:, data:text/*, data:application/*.
+  // Allow https, http, mailto, and data:image/* (mammoth inlines DOCX images
+  // as base64). Anything else on href/src is dropped.
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: {
+    img: ["http", "https", "data"],
+  },
+  allowProtocolRelative: false,
+  // Strip <script>/<style>/<svg>/<math> entirely, including their text.
+  nonTextTags: ["script", "style", "textarea", "noscript", "svg", "math"],
+  allowedSchemesAppliedToAttributes: ["href", "src", "cite"],
+  // Drop any inline `style` since regex predecessor explicitly forbade
+  // url()/expression(); easier to deny outright than to parse CSS.
+  allowedStyles: {},
+};
+
 export function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<\/?(?:iframe|object|embed|link|meta|base|form|input|button|svg)\b[^>]*>/gi, "")
-    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/\s+(?:href|src)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|\s*javascript:[^\s>]+)/gi, "");
+  return sanitizeHtmlLib(html, SANITIZE_OPTIONS);
 }
 
 export function createDocumentHtml(body: string, style: string): string {

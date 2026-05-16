@@ -2,7 +2,6 @@ import { type OperationId } from "./types";
 import {
   FilePlus2,
   Scissors,
-  Image as ImageIcon,
   FileCode2,
   FileDown,
   FileText,
@@ -42,17 +41,6 @@ export const OPERATIONS: Operation[] = [
     multi: false,
     fileType: "pdf",
     outputLabel: "Split PDF",
-  },
-  {
-    id: "images-to-pdf",
-    label: "Images → PDF",
-    description: "Pack JPG or PNG images into a single PDF. Order determines page order.",
-    icon: ImageIcon,
-    inputLabel: "Images (JPG / PNG)",
-    hint: "Drop images here, or click to browse",
-    multi: true,
-    fileType: "image",
-    outputLabel: "Image PDF",
   },
   {
     id: "markdown-to-pdf",

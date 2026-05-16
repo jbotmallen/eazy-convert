@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileVideo, FileImage, FileAudio, CheckCircle, Loader2, Video, Music, Image as ImageIcon } from "lucide-react";
+import { FileVideo, FileImage, FileAudio, CheckCircle, Loader2, Video, Music, Image as ImageIcon, FolderOpen, FileOutput, Gauge } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldLabel } from "@/components/ui/field-label";
 import {
   Select,
   SelectContent,
@@ -14,8 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { SimpleToast } from "@/components/ui/simple-toast";
-import { cn, getFileName } from "@/lib/utils";
+import { cn, getFileName, getUserErrorMessage, showErrorToast, showSuccessToast } from "@/lib/utils";
 import { fileSchema, type FileValues } from "@/lib/validation";
 import { useProcessing } from "@/context/useProcessing";
 
@@ -50,8 +50,8 @@ interface ExtendedFile extends File {
 export function Converter({ mode, title, description, allowedExtensions, outputFormats }: ConverterProps) {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "converting" | "success" | "error">("idle");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [quality, setQuality] = useState("original");
+  const [outputPath, setOutputPath] = useState<string | null>(null);
   const { setIsProcessing } = useProcessing();
   const cancelledRef = useRef(false);
 
@@ -111,6 +111,7 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
 
       setStatus("idle");
       setProgress(0);
+      setOutputPath(null);
     }
   };
 
@@ -119,12 +120,28 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
     window.api.cancelConvert();
   };
 
+  const showInFolder = async (filePath: string) => {
+    try {
+      if (mode === "videos") {
+        await window.api.video.showInFolder(filePath);
+        return;
+      }
+      if (mode === "audio") {
+        await window.api.audio.showInFolder(filePath);
+        return;
+      }
+      await window.api.image.showInFolder(filePath);
+    } catch (error) {
+      showErrorToast(error);
+    }
+  };
+
   const onSubmit = async (data: FileValues) => {
     const file = data.file as ExtendedFile;
     const inputId = file.fileId || file.path;
 
     if (!inputId) {
-      setToast({ message: "Invalid file path. Please select a file.", type: "error" });
+      showErrorToast("Invalid file path. Please select a file.");
       return;
     }
 
@@ -132,20 +149,22 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
     setIsProcessing(true);
     setStatus("converting");
     setProgress(0);
+    setOutputPath(null);
 
     try {
       const finalPath = await window.api.convert(inputId, data.format, mode === "videos" ? quality : undefined);
+      setOutputPath(finalPath);
       setStatus("success");
-      setToast({ message: `Converted to ${getFileName(finalPath)}`, type: "success" });
+      showSuccessToast(`Converted to ${getFileName(finalPath)}`);
       reset();
     } catch (error: unknown) {
       if (cancelledRef.current) {
         setStatus("idle");
         setProgress(0);
       } else {
-        const errorMessage = error instanceof Error ? error.message : "Conversion failed.";
+        const errorMessage = getUserErrorMessage(error, "Conversion failed.");
         setStatus("error");
-        setToast({ message: errorMessage, type: "error" });
+        showErrorToast(errorMessage);
         setProgress(0);
       }
     } finally {
@@ -169,7 +188,7 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full border-border bg-card/40 shadow-2xl backdrop-blur-md overflow-hidden font-sans">
         <CardHeader className="text-center pb-8 border-b border-border/50 bg-muted/5">
@@ -226,9 +245,7 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
             <div className="space-y-4">
               <div className={cn(mode === "videos" ? "grid grid-cols-2 gap-4" : "")}>
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-                    Target Export Format
-                  </label>
+                  <FieldLabel icon={FileOutput}>Target Export Format</FieldLabel>
                   <Select
                     disabled={status === "converting" || !selectedFile}
                     onValueChange={(value) => setValue("format", value, { shouldValidate: true })}
@@ -249,9 +266,7 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
 
                 {mode === "videos" && (
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-                      Output Quality
-                    </label>
+                    <FieldLabel icon={Gauge}>Output Quality</FieldLabel>
                     <Select
                       value={quality}
                       onValueChange={setQuality}
@@ -276,6 +291,31 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
                 <p className="text-sm font-bold text-destructive text-center uppercase tracking-tighter">{errors.format.message as string}</p>
               )}
             </div>
+
+            <AnimatePresence>
+              {status === "success" && outputPath && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2">
+                    <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground" title={outputPath}>
+                      {outputPath}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => showInFolder(outputPath)}
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-green-500/30 px-2.5 text-[11px] font-bold text-green-600 transition-colors hover:bg-green-500/10"
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      Open
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatePresence>
               {status === "converting" && (
@@ -341,12 +381,11 @@ export function Converter({ mode, title, description, allowedExtensions, outputF
         <CardFooter className="justify-center border-t border-border/50 bg-muted/10 py-8">
           <p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
             <CheckCircle className="h-4 w-4 text-primary" />
-            Fast Local Engine — Powered by EazyConvert
+            Fast Local Engine — Powered by KitBox
           </p>
         </CardFooter>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

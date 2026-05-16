@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Scissors, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { FileList } from "@/pages/document-converter/FileList";
 import { PageRangeSelector } from "@/pages/document-converter/PageRangeSelector";
 import { SuccessMessage } from "@/pages/document-converter/SuccessMessage";
 import { OPERATIONS } from "@/pages/document-converter/constants";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
+import { showErrorToast, showSuccessToast } from "@/lib/utils";
 
 const op = OPERATIONS.find((o) => o.id === "split")!;
 
@@ -21,7 +21,7 @@ export function SplitPdfPage() {
   const [toPage, setToPage] = useState("1");
   const { setIsProcessing } = useProcessing();
 
-  const { files, setFiles, isDragOver, toast, setToast, handleDragOver, handleDragLeave, handleDrop: _drop, removeFile } =
+  const { files, setFiles, isDragOver, handleDragOver, handleDragLeave, handleDrop: _drop, removeFile } =
     useDocumentFileState("pdf", false);
 
   // Override pick/drop to also load page count when a PDF is selected
@@ -43,7 +43,7 @@ export function SplitPdfPage() {
         await loadPageCount(picked);
       }
     } catch {
-      setToast({ message: "Could not open file picker — restart the app and try again.", type: "error" });
+      showErrorToast("Could not open file picker. Try again or restart the app.");
     }
   };
 
@@ -64,13 +64,13 @@ export function SplitPdfPage() {
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Select a PDF first.", type: "error" });
+      showErrorToast("Select a PDF first.");
       return;
     }
     const from = parseInt(fromPage, 10);
     const to = parseInt(toPage, 10);
     if (isNaN(from) || isNaN(to) || from < 1 || to < from) {
-      setToast({ message: "Invalid page range.", type: "error" });
+      showErrorToast("Invalid page range.");
       return;
     }
     setStatus("processing");
@@ -80,10 +80,10 @@ export function SplitPdfPage() {
       const result = await window.api.document.split(files[0].id, from, to);
       setOutputPath(result);
       setStatus("success");
-      setToast({ message: "Done! Saved next to your source file.", type: "success" });
+      showSuccessToast("Done! Saved next to your source file.");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Split failed.", type: "error" });
+      showErrorToast(err, "Split failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -93,7 +93,7 @@ export function SplitPdfPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -116,7 +116,7 @@ export function SplitPdfPage() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onMoveFile={() => {}}
+            onMoveFile={() => { }}
             onRemoveFile={removeFile}
             onRemoveAll={() => { setFiles([]); setPageCount(null); }}
           />
@@ -162,7 +162,6 @@ export function SplitPdfPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

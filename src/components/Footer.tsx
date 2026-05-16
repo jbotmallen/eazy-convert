@@ -1,4 +1,3 @@
-import { Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function Footer() {
@@ -8,10 +7,8 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-5 text-center md:text-left">
           <div className="col-span-2 space-y-4 flex flex-col items-center md:items-start">
             <div className="flex items-center gap-2">
-              <div className="bg-primary rounded-lg p-1">
-                <Zap className="h-4 w-4 text-primary-foreground fill-primary-foreground" />
-              </div>
-              <span className="font-black tracking-tighter uppercase italic">EazyConvert</span>
+              <img src="/logo.png" alt="Logo" className="h-8 w-8 rounded-lg" />
+              <span className="font-black tracking-tighter uppercase italic">KitBox</span>
             </div>
             <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
               Powerful, private, and insanely fast file conversion.
@@ -46,7 +43,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-border pt-8 text-center text-[10px] uppercase tracking-widest text-muted-foreground/50">
-          © {new Date().getFullYear()} EazyConvert. No files leave your machine. Ever.
+          © {new Date().getFullYear()} KitBox. No files leave your machine. Ever.
         </div>
       </div>
     </footer>

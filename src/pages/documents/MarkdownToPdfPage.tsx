@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { FileList } from "@/pages/document-converter/FileList";
 import { SuccessMessage } from "@/pages/document-converter/SuccessMessage";
 import { OPERATIONS } from "@/pages/document-converter/constants";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
+import { showErrorToast, showSuccessToast } from "@/lib/utils";
 
 const op = OPERATIONS.find((o) => o.id === "markdown-to-pdf")!;
 
@@ -17,12 +17,12 @@ export function MarkdownToPdfPage() {
   const [outputPath, setOutputPath] = useState<string | null>(null);
   const { setIsProcessing } = useProcessing();
 
-  const { files, setFiles, isDragOver, toast, setToast, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, removeFile } =
+  const { files, setFiles, isDragOver, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, removeFile } =
     useDocumentFileState("md", false);
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Select a Markdown file first.", type: "error" });
+      showErrorToast("Select a Markdown file first.");
       return;
     }
     setStatus("processing");
@@ -32,10 +32,10 @@ export function MarkdownToPdfPage() {
       const result = await window.api.document.markdownToPdf(files[0].id);
       setOutputPath(result);
       setStatus("success");
-      setToast({ message: "Done! Saved next to your source file.", type: "success" });
+      showSuccessToast("Done! Saved next to your source file.");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Conversion failed.", type: "error" });
+      showErrorToast(err, "Conversion failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -45,7 +45,7 @@ export function MarkdownToPdfPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -68,7 +68,7 @@ export function MarkdownToPdfPage() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onMoveFile={() => {}}
+            onMoveFile={() => { }}
             onRemoveFile={removeFile}
             onRemoveAll={() => setFiles([])}
           />
@@ -104,7 +104,6 @@ export function MarkdownToPdfPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

@@ -1,8 +1,8 @@
-# EazyConvert
+# KitBox
 
-![EazyConvert app preview](./public/main.png)
+![KitBox app preview](./public/main.png)
 
-EazyConvert is a desktop file conversion app for Windows, macOS, and Linux. It runs conversion work locally on your device using bundled conversion engines, so common image, video, audio, PDF, Word, and Markdown workflows do not require cloud uploads.
+KitBox is a local-first digital toolkit for Windows, macOS, and Linux. It runs file work locally on your device using bundled processing engines, so common image, video, audio, PDF, Word, and Markdown workflows do not require cloud uploads.
 
 The app is built with Electron, React, TypeScript, Vite, FFmpeg, pdf-lib, Mammoth, Marked, Turndown, and yt-dlp.
 
@@ -40,7 +40,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((EazyConvert))
+  root((KitBox))
     Media
       Images
       Video
@@ -66,15 +66,15 @@ mindmap
 
 ### Windows
 
-1. Download `EazyConvert Setup 1.0.0.exe` from the GitHub release.
+1. Download `KitBox Setup 1.0.0.exe` from the GitHub release.
 2. Run the installer.
 3. If Windows SmartScreen appears, choose **More info** then **Run anyway** if you trust the release.
-4. Launch EazyConvert from the Start menu or desktop shortcut.
+4. Launch KitBox from the Start menu or desktop shortcut.
 
 ### macOS
 
 1. Download the `.dmg` build from the GitHub release when available.
-2. Open the DMG and drag EazyConvert into Applications.
+2. Open the DMG and drag KitBox into Applications.
 3. If macOS blocks launch because the app is not notarized, right-click the app and choose **Open**.
 
 ### Linux
@@ -84,8 +84,8 @@ mindmap
 3. Run it directly.
 
 ```bash
-chmod +x EazyConvert*.AppImage
-./EazyConvert*.AppImage
+chmod +x KitBox*.AppImage
+./KitBox*.AppImage
 ```
 
 ## Verify Download
@@ -93,7 +93,7 @@ chmod +x EazyConvert*.AppImage
 Each release should include a SHA256 checksum. On Windows:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 "EazyConvert Setup 1.0.0.exe"
+Get-FileHash -Algorithm SHA256 "KitBox Setup 1.0.0.exe"
 ```
 
 Compare the hash with `SHA256SUMS.txt` or the checksum listed in the GitHub release notes.
@@ -165,13 +165,13 @@ flowchart TD
 
 ## Security Notes
 
-EazyConvert is designed to keep normal conversion workflows local. The renderer runs with `nodeIntegration: false`, `contextIsolation: true`, and Electron sandboxing enabled. File work is routed through constrained IPC handlers. Document conversion windows use restrictive CSP, disabled JavaScript where practical, and navigation/window-open blocking.
+KitBox is designed to keep normal conversion workflows local. The renderer runs with `nodeIntegration: false`, `contextIsolation: true`, and Electron sandboxing enabled. File work is routed through constrained IPC handlers. Document conversion windows use restrictive CSP, disabled JavaScript where practical, and navigation/window-open blocking.
 
 This does not make untrusted files risk-free. Media and document parsers are complex software. Treat files from unknown sources carefully, keep the app updated, and avoid converting files you do not trust.
 
 ## YouTube Downloader Warning
 
-The YouTube downloader is provided for personal and lawful use only. You are responsible for following YouTube's Terms of Service, copyright law, and local law. Do not use EazyConvert to download, redistribute, or bypass access controls for content you do not have rights to use.
+The YouTube downloader is provided for personal and lawful use only. You are responsible for following YouTube's Terms of Service, copyright law, and local law. Do not use KitBox to download, redistribute, or bypass access controls for content you do not have rights to use.
 
 YouTube behavior may change over time. If downloads fail, update dependencies or wait for upstream yt-dlp fixes.
 

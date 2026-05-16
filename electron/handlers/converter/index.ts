@@ -6,7 +6,10 @@ import { VIDEO_EXTS, AUDIO_EXTS } from "../../utils/constants.js";
 import { validatePath, getUniquePath, getFfmpegPath, getFfprobePath } from "../../utils/helpers.js";
 import { isAllowedVideoQuality } from "../../utils/security.js";
 import { resolveRegisteredFilePath } from "../../utils/fileRegistry.js";
-import { applyImageArgs } from "./image.js";
+import { registerProducedOutput } from "../../utils/outputRegistry.js";
+import { registerCancellable } from "../../utils/cancellationRegistry.js";
+import { assertMediaDurationWithinLimit, assertMediaFileWithinLimit } from "../../utils/mediaLimits.js";
+import { applyImageArgs, registerImageHandlers } from "./image.js";
 import { applyVideoArgs } from "./video.js";
 import { applyAudioArgs } from "./audio.js";
 
@@ -47,18 +50,16 @@ function parseFFmpegError(stderr: string, code: number | null): string {
 const activeConversions = new Map<number, ChildProcess>();
 
 export function registerConverterHandlers() {
-  ipcMain.on("cancel-convert", (event) => {
-    const proc = activeConversions.get(event.sender.id);
-    if (proc) {
-      proc.kill();
-      activeConversions.delete(event.sender.id);
-    }
-  });
+  registerImageHandlers();
 
   ipcMain.handle(
     "convert",
     async (event, inputId: string, outputFormat: string, quality?: string) => {
-      const absoluteInputPath = resolveRegisteredFilePath(inputId);
+      const senderId = event.sender.id;
+      if (activeConversions.has(senderId)) {
+        throw new Error("Conversion already in progress.");
+      }
+      const absoluteInputPath = resolveRegisteredFilePath(senderId, inputId);
 
       if (!validatePath(absoluteInputPath)) throw new Error("Invalid input path.");
 
@@ -66,6 +67,8 @@ export function registerConverterHandlers() {
         throw new Error("Input file not found.");
 
       const inputExt = path.extname(absoluteInputPath).toLowerCase();
+      const isTimedMedia = VIDEO_EXTS.includes(inputExt) || AUDIO_EXTS.includes(inputExt);
+      if (isTimedMedia) assertMediaFileWithinLimit(absoluteInputPath);
       const requestedOutputExt = outputFormat.startsWith(".")
         ? outputFormat.toLowerCase()
         : `.${outputFormat.toLowerCase()}`;
@@ -101,8 +104,9 @@ export function registerConverterHandlers() {
       args.push(finalOutputPath);
 
       let totalDuration: number | null = null;
-      if (VIDEO_EXTS.includes(inputExt) || AUDIO_EXTS.includes(inputExt)) {
+      if (isTimedMedia) {
         totalDuration = await getDuration(absoluteInputPath);
+        if (totalDuration !== null) assertMediaDurationWithinLimit(totalDuration);
       }
 
       return new Promise((resolve, reject) => {
@@ -118,7 +122,8 @@ export function registerConverterHandlers() {
         const ffmpegProcess = spawn(ffmpegExe, fullArgs);
         let stderrOutput = "";
 
-        activeConversions.set(event.sender.id, ffmpegProcess);
+        activeConversions.set(senderId, ffmpegProcess);
+        const disposeCancel = registerCancellable(senderId, () => ffmpegProcess.kill());
 
         ffmpegProcess.stdout.on("data", (data) => {
           const lines = data.toString().split("\n");
@@ -141,9 +146,11 @@ export function registerConverterHandlers() {
         });
 
         ffmpegProcess.on("close", (code) => {
-          activeConversions.delete(event.sender.id);
+          activeConversions.delete(senderId);
+          disposeCancel();
           if (code === 0) {
             event.sender.send("conversion-progress", 100);
+            registerProducedOutput(finalOutputPath);
             resolve(finalOutputPath);
           } else {
             reject(new Error(parseFFmpegError(stderrOutput, code)));
@@ -151,7 +158,8 @@ export function registerConverterHandlers() {
         });
 
         ffmpegProcess.on("error", (err) => {
-          activeConversions.delete(event.sender.id);
+          activeConversions.delete(senderId);
+          disposeCancel();
           reject(err);
         });
       });

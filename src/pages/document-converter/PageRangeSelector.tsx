@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { ArrowRight, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface PageRangeSelectorProps {
@@ -22,7 +23,8 @@ export function PageRangeSelector({
       animate={{ opacity: 1, height: "auto" }}
       className="space-y-3 overflow-hidden"
     >
-      <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+      <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+        <Layers className="h-3.5 w-3.5 text-primary" />
         Page Range{pageCount ? ` — PDF has ${pageCount} pages` : ""}
       </label>
       <div className="flex items-center gap-3">
@@ -37,7 +39,7 @@ export function PageRangeSelector({
             className="h-12 text-center font-bold text-lg border-2"
           />
         </div>
-        <span className="text-muted-foreground font-bold text-lg">—</span>
+        <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
         <div className="flex-1">
           <Input
             type="number"

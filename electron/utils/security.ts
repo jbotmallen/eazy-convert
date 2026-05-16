@@ -4,7 +4,17 @@ import path from "path";
 export const MAX_DOCUMENT_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 
 const EXTERNAL_PROTOCOLS = new Set(["https:"]);
-const EXTERNAL_HOSTS = new Set(["aka.ms"]);
+// Desktop allowlist. Stricter than the web build: every host here must be reachable
+// from a button shipped inside the packaged app (landing page + in-app links).
+// The landing page itself runs unrestricted in a regular browser, so this list
+// only governs window.api.openExternal calls from the Electron renderer.
+const EXTERNAL_HOSTS = new Set([
+  "aka.ms",
+  "github.com",
+  "www.github.com",
+  "linkedin.com",
+  "www.linkedin.com",
+]);
 const YOUTUBE_HOSTS = new Set([
   "youtube.com",
   "www.youtube.com",
