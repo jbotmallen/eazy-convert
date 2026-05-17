@@ -134,8 +134,8 @@
   "devDependencies": {
     "@eslint/js": "9.39.2",
     "@types/ffprobe-static": "2.0.3",
-    "@types/html-to-docx": "1.8.0",
-    "@types/node": "24.10.13",
+    "@types/html-to-docx": "1.8.1",
+    "@types/node": "25.8.0",
     "@types/pdf-parse": "1.1.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
