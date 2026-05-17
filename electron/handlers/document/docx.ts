@@ -4,6 +4,7 @@ import fs from "fs";
 import { createDocumentHtml, getUniqueName, hardenDocumentWindow } from "./utils.js";
 import { assertDocumentFileWithinLimit, assertExistingDocumentPath } from "../../utils/security.js";
 import { resolveRegisteredFilePath } from "../../utils/fileRegistry.js";
+import { registerProducedOutput } from "../../utils/outputRegistry.js";
 
 const DOCX_EXTS = [".docx"] as const;
 
@@ -37,8 +38,8 @@ function mammothHtmlToDocJson(html: string, sourceFile: string): string {
 
 export function registerDocxHandlers() {
   // Convert DOCX to HTML
-  ipcMain.handle("document:docx-to-html", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:docx-to-html", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, DOCX_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const mammoth = await import("mammoth");
@@ -55,12 +56,13 @@ export function registerDocxHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.html`);
     fs.writeFileSync(outPath, html, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert DOCX to plain text
-  ipcMain.handle("document:docx-to-text", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:docx-to-text", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, DOCX_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const mammoth = await import("mammoth");
@@ -70,12 +72,13 @@ export function registerDocxHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.txt`);
     fs.writeFileSync(outPath, result.value, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert DOCX to PDF via Chromium print
-  ipcMain.handle("document:docx-to-pdf", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:docx-to-pdf", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, DOCX_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const mammoth = await import("mammoth");
@@ -108,12 +111,13 @@ export function registerDocxHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.pdf`);
     fs.writeFileSync(outPath, pdfBuffer);
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert DOCX to Markdown via mammoth → turndown
-  ipcMain.handle("document:docx-to-markdown", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:docx-to-markdown", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, DOCX_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const mammoth = await import("mammoth");
@@ -128,12 +132,13 @@ export function registerDocxHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.md`);
     fs.writeFileSync(outPath, markdown, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 
   // Convert DOCX to structured JSON
-  ipcMain.handle("document:docx-to-json", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:docx-to-json", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, DOCX_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const mammoth = await import("mammoth");
@@ -144,6 +149,7 @@ export function registerDocxHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.json`);
     fs.writeFileSync(outPath, json, "utf-8");
+    registerProducedOutput(outPath);
     return outPath;
   });
 }

@@ -1,0 +1,68 @@
+name: Build & lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Least privilege: the default GITHUB_TOKEN is read-only. No job needs write.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Lint + build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      # Third-party actions are pinned to a full commit SHA, not a moving tag.
+      # A compromised action repo cannot float a malicious version into the
+      # build via `@v4`. Dependabot (github-actions ecosystem) bumps these.
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Don't leave the auth token in .git/config for later steps to read.
+          persist-credentials: false
+
+      # Node 22: pnpm 11 and the build toolchain require Node >= 22.13. This
+      # is the runtime for all `run:` steps below.
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      # action-setup reads the `packageManager` field in package.json, so the
+      # pnpm version is pinned by the repo, not by this workflow.
+      # standalone: install the self-contained pnpm executable (@pnpm/exe),
+      # which bundles its own Node. Without it, action-setup runs pnpm's
+      # npm-package self-installer under the runner's Actions Node (v20),
+      # which fails pnpm 11's engines.node >= 22.13 check.
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          standalone: true
+
+      # --frozen-lockfile: fail if pnpm-lock.yaml and package.json have drifted;
+      # never re-resolve. Install scripts run only for the allowlist in
+      # pnpm-workspace.yaml (allowBuilds).
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check + build main process
+        run: pnpm run build:main
+
+      - name: Vite build (renderer)
+        run: pnpm run build:web
+
+      - name: yt-dlp version watermark (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: node scripts/check-ytdlp-version.mjs

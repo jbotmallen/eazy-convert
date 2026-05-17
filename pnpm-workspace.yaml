@@ -1,0 +1,30 @@
+# pnpm-workspace.yaml — even though this is a single-package repo, pnpm 11+
+# reads project-wide config from this file (not from a `pnpm` field in
+# package.json, which it silently ignores). See `.npmrc` and SECURITY.md.
+
+# allowBuilds: lifecycle install scripts are blocked for every dependency
+# except those mapped here. The canonical pnpm supply-chain mitigation —
+# most npm worms (Shai-Hulud, nx/qix, the polyfill compromise) ran via
+# install hooks. Add a package only if it genuinely needs the script
+# (native compile, binary download) and you've reviewed why.
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  ffmpeg-static: true
+  onnxruntime-node: true
+  sharp: true
+  youtube-dl-exec: true
+
+# overrides: force a specific transitive version. `parent>child` scopes the
+# override to that dependency path only.
+#   - minimatch@3.1.5>brace-expansion: pulls the patched brace-expansion
+#     (ReDoS fix) into the legacy minimatch 3.1.5 still required transitively.
+#   - @imgly/background-removal-node>lodash: 4.17.23 (its declared version) is
+#     vulnerable to code injection via `_.template` (GHSA-r5fr-rjxr-66jc).
+#     4.18.1 is the maintainer-published fixed release.
+#   - @imgly/background-removal-node>zod: pulls a current zod 3.x.
+overrides:
+  'minimatch@3.1.5>brace-expansion': 1.1.13
+  '@imgly/background-removal-node>lodash': 4.18.1
+  '@imgly/background-removal-node>zod': 3.23.8

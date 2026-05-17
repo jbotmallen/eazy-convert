@@ -4,13 +4,14 @@ import fs from "fs";
 import { createDocumentHtml, getUniqueName, hardenDocumentWindow } from "./utils.js";
 import { assertDocumentFileWithinLimit, assertExistingDocumentPath } from "../../utils/security.js";
 import { resolveRegisteredFilePath } from "../../utils/fileRegistry.js";
+import { registerProducedOutput } from "../../utils/outputRegistry.js";
 
 const MARKDOWN_EXTS = [".md", ".markdown"] as const;
 
 export function registerMarkdownHandlers() {
   // Convert Markdown to PDF via Chromium print
-  ipcMain.handle("document:markdown-to-pdf", async (_, inputPath: string) => {
-    inputPath = resolveRegisteredFilePath(inputPath);
+  ipcMain.handle("document:markdown-to-pdf", async (event, inputPath: string) => {
+    inputPath = resolveRegisteredFilePath(event.sender.id, inputPath);
     assertExistingDocumentPath(inputPath, MARKDOWN_EXTS);
     assertDocumentFileWithinLimit(inputPath);
     const { marked } = await import("marked");
@@ -47,6 +48,7 @@ export function registerMarkdownHandlers() {
     const outDir = path.dirname(inputPath);
     const outPath = getUniqueName(outDir, `${base}.pdf`);
     fs.writeFileSync(outPath, pdfBuffer);
+    registerProducedOutput(outPath);
     return outPath;
   });
 }

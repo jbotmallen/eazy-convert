@@ -19,25 +19,24 @@ import {
   ChevronRight,
   Layers,
   Hash,
-  AlignLeft,
-  FileJson2,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import logo from "../../public/logo.png";
+import logo from "/logo.png";
 import { ThemeToggle } from "./ThemeToggle";
 import { useProcessing } from "@/context/useProcessing";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ElementType } from "react";
 
 type ElectronStyle = CSSProperties & { WebkitAppRegion?: "drag" | "no-drag" };
-const dragStyle: ElectronStyle = { WebkitAppRegion: "drag" };
 const noDragStyle: ElectronStyle = { WebkitAppRegion: "no-drag" };
 
 interface NavSubItem {
   label: string;
   description: string;
   to: string;
-  icon: React.ElementType;
+  icon: ElementType;
   comingSoon?: boolean;
 }
 
@@ -45,7 +44,7 @@ interface NavPanelItem {
   label: string;
   description: string;
   to: string;
-  icon: React.ElementType;
+  icon: ElementType;
   comingSoon?: boolean;
   subItems?: NavSubItem[];
 }
@@ -53,7 +52,7 @@ interface NavPanelItem {
 interface NavSection {
   id: string;
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   activePrefix: string;
   items: NavPanelItem[];
 }
@@ -61,53 +60,54 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     id: "images",
-    label: "Images",
+    label: "Image Tools",
     icon: ImageIcon,
     activePrefix: "/images",
     items: [
-      { label: "Image Converter", description: "Convert between PNG, JPG, WEBP, BMP", to: "/images", icon: RefreshCw },
-      { label: "Image Compressor", description: "Reduce file size without quality loss", to: "#", icon: Minimize2, comingSoon: true },
-      { label: "Background Remover", description: "Remove image backgrounds automatically", to: "#", icon: Eraser, comingSoon: true },
+      { label: "Image Converter", description: "Convert between PNG, JPG, WEBP, and more!", to: "/images", icon: RefreshCw },
+      { label: "Images -> PDF", description: "Combine images into a PDF", to: "/images?to=pdf", icon: FileDown },
+      { label: "Image Compressor", description: "Reduce file size without quality loss", to: "/images/compress", icon: Minimize2 },
+      { label: "Background Remover", description: "Remove image backgrounds automatically", to: "/images/remove-background", icon: Eraser },
     ],
   },
   {
     id: "videos",
-    label: "Videos",
+    label: "Video Tools",
     icon: Video,
     activePrefix: "/videos",
     items: [
       { label: "Video Converter", description: "Convert MP4, WEBM, AVI, MOV, MKV", to: "/videos", icon: RefreshCw },
-      { label: "Video Trimmer", description: "Cut clips to the perfect length", to: "#", icon: Scissors, comingSoon: true },
-      { label: "Video Compressor", description: "Shrink file size without losing quality", to: "#", icon: Minimize2, comingSoon: true },
+      { label: "Video Trimmer", description: "Cut clips to the perfect length", to: "/videos/trim", icon: Scissors },
+      { label: "Video Compressor", description: "Shrink file size without losing quality", to: "/videos/compress", icon: Minimize2 },
+      { label: "Video Denoiser", description: "Remove background noise from video audio", to: "/videos/denoise", icon: Wand2 },
     ],
   },
   {
     id: "audio",
-    label: "Audio",
+    label: "Audio Tools",
     icon: Music,
     activePrefix: "/audio",
     items: [
       { label: "Audio Converter", description: "Convert MP3, WAV, OGG, AAC, FLAC", to: "/audio", icon: RefreshCw },
-      { label: "Audio Splitter", description: "Split audio by timestamps", to: "#", icon: Scissors, comingSoon: true },
-      { label: "Audio Denoiser", description: "Remove background noise from recordings", to: "#", icon: Wand2, comingSoon: true },
+      { label: "Audio Trimmer", description: "Cut audio to the perfect length", to: "/audio/trim", icon: Scissors },
+      { label: "Audio Denoiser", description: "Remove background noise from recordings", to: "/audio/denoise", icon: Wand2 },
     ],
   },
   {
     id: "documents",
-    label: "Docs",
+    label: "Document Tools",
     icon: FileText,
     activePrefix: "/documents",
     items: [
       {
         label: "PDF",
-        description: "Merge, split and build PDF files",
+        description: "Convert, merge, and split PDF files",
         to: "#",
         icon: Layers,
         subItems: [
-          { label: "PDF Converter",  description: "Convert PDF to Text, HTML, Word or Images", to: "/documents/pdf",           icon: RefreshCw  },
-          { label: "Merge PDFs",     description: "Combine multiple PDFs into one file",        to: "/documents/merge",        icon: FilePlus2  },
-          { label: "Split PDF",      description: "Extract a page range from a PDF",             to: "/documents/split",        icon: Scissors   },
-          { label: "Images → PDF",   description: "Pack images into a single PDF",               to: "/documents/images-to-pdf", icon: ImageIcon },
+          { label: "PDF Converter", description: "Convert PDF to Text, HTML, Word or Images", to: "/documents/pdf", icon: RefreshCw },
+          { label: "PDF Merger", description: "Combine multiple PDFs into one file", to: "/documents/merge", icon: FilePlus2 },
+          { label: "PDF Splitter", description: "Extract a page range from a PDF", to: "/documents/split", icon: Scissors },
         ],
       },
       {
@@ -116,11 +116,7 @@ const NAV_SECTIONS: NavSection[] = [
         to: "#",
         icon: FileText,
         subItems: [
-          { label: "DOCX → HTML",     description: "Export as a web-ready HTML file",   to: "/documents/word?to=html",     icon: FileCode2  },
-          { label: "DOCX → Text",     description: "Extract plain text content",         to: "/documents/word?to=text",     icon: AlignLeft  },
-          { label: "DOCX → PDF",      description: "Export as a print-ready PDF",        to: "/documents/word?to=pdf",      icon: FileDown   },
-          { label: "DOCX → Markdown", description: "Convert to Markdown format",         to: "/documents/word?to=markdown", icon: Hash       },
-          { label: "DOCX → JSON",     description: "Structured JSON of the document",    to: "/documents/word?to=json",     icon: FileJson2  },
+          { label: "Word Converter", description: "Convert DOCX to HTML, Text, PDF, Markdown, or JSON", to: "/documents/word", icon: FileCode2 },
         ],
       },
       {
@@ -129,7 +125,7 @@ const NAV_SECTIONS: NavSection[] = [
         to: "#",
         icon: Hash,
         subItems: [
-          { label: "Markdown → PDF", description: "Render .md as a styled PDF", to: "/documents/markdown-to-pdf", icon: FileDown },
+          { label: "Markdown Converter", description: "Render .md as a styled PDF", to: "/documents/markdown-to-pdf", icon: FileDown },
         ],
       },
     ],
@@ -146,239 +142,152 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+function isItemActive(currentPath: string, item: NavPanelItem | NavSubItem) {
+  if (item.to === "#") return false;
+  return currentPath === item.to;
+}
+
 export function Navbar() {
   const location = useLocation();
   const { isProcessing } = useProcessing();
   const [openPanel, setOpenPanel] = useState<string | null>(null);
   const [openFlyout, setOpenFlyout] = useState<string | null>(null);
+  const [isPinned, setIsPinned] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const sidebarExpanded = isPinned || isHovered;
+  const currentPath = `${location.pathname}${location.search}`;
 
   const closePanel = () => {
     setOpenPanel(null);
     setOpenFlyout(null);
   };
 
-  return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center">
-      {/* Draggable title bar */}
-      <div
-        className="w-full h-10 flex items-center px-4 bg-background/40 backdrop-blur-sm border-b border-border/50"
-        style={dragStyle}
-      >
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="" className="h-4 w-4" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 italic">
-            EazyConvert Desktop
-          </span>
-        </div>
-      </div>
+  const closeAfterNavigate = () => {
+    if (!isPinned) {
+      closePanel();
+    }
+  };
 
-      {/* Nav bar */}
-      <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-between w-full max-w-4xl h-14 px-4 mt-4 rounded-2xl border-4 border-dotted border-border/80 bg-background/80 backdrop-blur-xl shadow-2xl shadow-black/20"
-        style={noDragStyle}
-      >
-        {/* Logo */}
+  return (
+    <motion.aside
+      initial={{ x: -18, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={cn(
+        "fixed h-dvh left-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden border-r border-border/60 bg-background/92 shadow-2xl shadow-black/15 backdrop-blur-xl transition-[width] duration-300 ease-out",
+        sidebarExpanded ? "w-64" : "w-18",
+      )}
+      style={noDragStyle}
+    >
+
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-3" style={noDragStyle}>
         <Link
           to="/app"
-          onClick={(e) => { if (isProcessing) e.preventDefault(); }}
+          onClick={(e) => {
+            if (isProcessing) {
+              e.preventDefault();
+              return;
+            }
+            closeAfterNavigate();
+          }}
           className={cn(
-            "flex items-center gap-2 min-w-28",
-            isProcessing && "opacity-40 cursor-not-allowed",
+            "flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-1.5 transition-colors hover:bg-primary/5",
+            isProcessing && "cursor-not-allowed opacity-40",
           )}
+          title="KitBox"
         >
-          <div className="shadow-md shadow-primary/20 p-1 rounded-lg">
-            <img src={logo} alt="EazyConvert" className="h-7 w-7 shrink-0 rounded-sm border-2 border-primary/20" />
-          </div>
-          <span className="text-sm font-black tracking-tighter uppercase italic hidden sm:block">
-            EazyConvert
+          <img src={logo} alt="KitBox" className="h-8 w-8 shrink-0 rounded-md border border-primary/25 bg-background p-0.5" />
+          <span
+            className={cn(
+              "truncate text-sm font-black uppercase italic tracking-tight transition-opacity duration-200",
+              sidebarExpanded ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            KitBox
           </span>
         </Link>
 
-        {/* Nav sections */}
-        <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          aria-label={isPinned ? "Collapse sidebar" : "Pin sidebar"}
+          title={isPinned ? "Collapse sidebar" : "Pin sidebar"}
+          onClick={() => setIsPinned((pinned) => !pinned)}
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/10 text-muted-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground",
+            !sidebarExpanded && "hidden",
+          )}
+        >
+          {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <nav className="app-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-2 py-3" aria-label="Primary navigation">
+        <div className="space-y-1.5">
           {NAV_SECTIONS.map((section) => {
             const isActive = location.pathname.startsWith(section.activePrefix);
             const isOpen = openPanel === section.id;
             const SectionIcon = section.icon;
 
             return (
-              <div
-                key={section.id}
-                className="relative"
-                onMouseEnter={() => { if (!isProcessing) setOpenPanel(section.id); }}
-                onMouseLeave={closePanel}
-              >
-                {/* Section button */}
+              <div key={section.id}>
                 <button
                   type="button"
                   onClick={() => {
-                    if (!isProcessing) setOpenPanel((p) => (p === section.id ? null : section.id));
+                    if (!isProcessing) setOpenPanel((current) => (current === section.id ? null : section.id));
                   }}
+                  disabled={isProcessing}
+                  aria-expanded={isOpen}
+                  title={section.label}
                   className={cn(
-                    "group relative flex items-center gap-1.5 h-9 px-2.5 rounded-xl transition-all duration-500",
-                    "text-[11px] font-black uppercase italic tracking-wider",
+                    "group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left transition-colors",
                     isActive
-                      ? "text-primary bg-primary/5"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30",
-                    isProcessing && "opacity-40 cursor-not-allowed",
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                    isProcessing && "cursor-not-allowed opacity-40",
                   )}
                 >
-                  <SectionIcon className="h-3.5 w-3.5 shrink-0" />
-
-                  {/* Label + chevron expand on hover or while panel is open */}
+                  <SectionIcon className="h-4.5 w-4.5 shrink-0" />
                   <span
                     className={cn(
-                      "flex items-center gap-0.5 overflow-hidden whitespace-nowrap transition-all duration-500",
-                      isOpen || isActive
-                        ? "max-w-xs opacity-100 duration-500 transition-all"
-                        : "max-w-0 opacity-0 group-hover:max-w-xs group-hover:opacity-100",
+                      "min-w-0 flex-1 truncate text-xs font-black uppercase italic tracking-wide transition-opacity duration-200",
+                      sidebarExpanded ? "opacity-100" : "pointer-events-none opacity-0",
                     )}
                   >
-                    <span>{section.label}</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-3 w-3 shrink-0 transition-transform duration-500",
-                        isOpen && "rotate-180",
-                      )}
-                    />
+                    {section.label}
                   </span>
-
-                  {/* Active underline dot */}
-                  {isActive && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-primary rounded-full" />
-                  )}
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-all duration-200",
+                      sidebarExpanded ? "opacity-100" : "opacity-0",
+                      isOpen && "rotate-180",
+                    )}
+                  />
                 </button>
 
-                {/* Dropdown panel */}
-                <AnimatePresence>
-                  {isOpen && (
+                <AnimatePresence initial={false}>
+                  {isOpen && sidebarExpanded && (
                     <motion.div
-                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1.5 z-50"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="overflow-hidden"
                     >
-                      {/* Panel header */}
-                      <div className="flex items-center gap-2 px-3 py-2 mb-0.5">
-                        <SectionIcon className="h-3.5 w-3.5 text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                          {section.label}
-                        </span>
+                      <div className="mt-1 space-y-1">
+                        {section.items.map((item) => (
+                          <SidebarItem
+                            key={item.label}
+                            item={item}
+                            isActive={isItemActive(currentPath, item)}
+                            isProcessing={isProcessing}
+                            currentPath={currentPath}
+                            openFlyout={openFlyout}
+                            setOpenFlyout={setOpenFlyout}
+                            onNavigate={closeAfterNavigate}
+                          />
+                        ))}
                       </div>
-
-                      {/* Panel items */}
-                      {section.items.map((item, idx) => {
-                        const ItemIcon = item.icon;
-                        const prevItem = section.items[idx - 1];
-                        const showSeparator = item.comingSoon && prevItem && !prevItem.comingSoon;
-
-                        // Flyout item (has subItems)
-                        if (item.subItems) {
-                          return (
-                            <div
-                              key={item.label}
-                              className="relative"
-                              onMouseEnter={() => setOpenFlyout(item.label)}
-                              onMouseLeave={() => setOpenFlyout(null)}
-                            >
-                              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/5 text-foreground group transition-colors cursor-default select-none">
-                                <ItemIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold group-hover:text-primary transition-colors truncate">
-                                    {item.label}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-                                </div>
-                                <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                              </div>
-
-                              {/* Flyout panel — pl-2 creates a hover bridge so mouse can reach it */}
-                              <AnimatePresence>
-                                {openFlyout === item.label && (
-                                  <motion.div
-                                    initial={{ opacity: 0, x: -6, scale: 0.97 }}
-                                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                                    exit={{ opacity: 0, x: -6, scale: 0.97 }}
-                                    transition={{ duration: 0.12, ease: "easeOut" }}
-                                    className="absolute left-full top-0 pl-2 z-50"
-                                  >
-                                    <div className="w-64 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1.5">
-                                      {/* Flyout header */}
-                                      <div className="flex items-center gap-2 px-3 py-2 mb-0.5">
-                                        <ItemIcon className="h-3.5 w-3.5 text-primary" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                          {item.label}
-                                        </span>
-                                      </div>
-
-                                      {item.subItems.map((sub) => {
-                                        const SubIcon = sub.icon;
-                                        return (
-                                          <Link
-                                            key={sub.label}
-                                            to={sub.to}
-                                            onClick={closePanel}
-                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/5 text-foreground group transition-colors"
-                                          >
-                                            <SubIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                                            <div className="flex-1 min-w-0">
-                                              <p className="text-xs font-bold group-hover:text-primary transition-colors truncate">
-                                                {sub.label}
-                                              </p>
-                                              <p className="text-[11px] text-muted-foreground truncate">{sub.description}</p>
-                                            </div>
-                                          </Link>
-                                        );
-                                      })}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        }
-
-                        // Regular item
-                        return (
-                          <div key={item.label}>
-                            {showSeparator && (
-                              <div className="my-1.5 mx-3 border-t border-border/40" />
-                            )}
-
-                            {item.comingSoon ? (
-                              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl opacity-40 cursor-not-allowed select-none">
-                                <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-xs font-bold text-foreground truncate">{item.label}</p>
-                                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
-                                      Soon
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <Link
-                                to={item.to}
-                                onClick={closePanel}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/5 text-foreground group transition-colors"
-                              >
-                                <ItemIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold group-hover:text-primary transition-colors truncate">
-                                    {item.label}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-                                </div>
-                              </Link>
-                            )}
-                          </div>
-                        );
-                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -386,20 +295,178 @@ export function Navbar() {
             );
           })}
         </div>
+      </nav>
 
-        {/* Right: GitHub + Theme */}
-        <div className="flex justify-end min-w-28 gap-2">
-          <Link
-            to="https://github.com/jbotmallen/eazy-convert"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-muted/10 hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all active:scale-95 shadow-lg shadow-black/10"
-          >
-            <Github className="h-4 w-4" />
-          </Link>
-          <ThemeToggle />
+      <div className="shrink-0 border-t border-border/40 p-2">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              title="GitHub"
+              onClick={() => window.api.openExternal("https://github.com/jbotmallen/eazy-convert")}
+              className="flex h-9 shrink-0 items-center gap-3 rounded-lg border border-border bg-muted/10 px-2.5 text-muted-foreground transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground active:scale-95"
+            >
+              <Github className="h-4 w-4 shrink-0" />
+            </button>
+            <span
+              className={cn(
+                "min-w-0 truncate text-xs font-bold transition-opacity duration-200",
+                sidebarExpanded ? "opacity-100" : "pointer-events-none opacity-0",
+              )}
+            >
+              GitHub Source Code
+            </span>
+          </div>
+          <div className="flex h-9 w-full items-center gap-3 rounded-lg">
+            <ThemeToggle className="shrink-0" />
+            <span
+              className={cn(
+                "min-w-0 truncate text-xs font-bold text-muted-foreground transition-opacity duration-200",
+                sidebarExpanded ? "opacity-100" : "pointer-events-none opacity-0",
+              )}
+            >
+              Toggle Themes
+            </span>
+          </div>
         </div>
-      </motion.nav>
-    </div>
+      </div>
+    </motion.aside>
+  );
+}
+
+interface SidebarItemProps {
+  item: NavPanelItem;
+  isActive: boolean;
+  isProcessing: boolean;
+  currentPath: string;
+  openFlyout: string | null;
+  setOpenFlyout: (label: string | null) => void;
+  onNavigate: () => void;
+}
+
+function SidebarItem({
+  item,
+  isActive,
+  isProcessing,
+  currentPath,
+  openFlyout,
+  setOpenFlyout,
+  onNavigate,
+}: SidebarItemProps) {
+  const ItemIcon = item.icon;
+  const isOpen = openFlyout === item.label;
+
+  if (item.subItems) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            if (!isProcessing) setOpenFlyout(isOpen ? null : item.label);
+          }}
+          disabled={isProcessing}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground",
+            isProcessing && "cursor-not-allowed opacity-40",
+          )}
+        >
+          <ItemIcon className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-xs font-bold">{item.label}</span>
+          <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 transition-transform", isOpen && "rotate-90")} />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="ml-2 mt-1 space-y-1 border-l border-border/40 pl-2">
+                {item.subItems.map((sub) => {
+                  const SubIcon = sub.icon;
+                  const subIsActive = isItemActive(currentPath, sub);
+                  return (
+                    <Link
+                      key={sub.label}
+                      to={sub.to}
+                      onClick={(e) => {
+                        if (isProcessing || subIsActive) {
+                          e.preventDefault();
+                          return;
+                        }
+                        onNavigate();
+                      }}
+                      aria-current={subIsActive ? "page" : undefined}
+                      tabIndex={subIsActive ? -1 : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                        subIsActive
+                          ? "pointer-events-none cursor-default bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+                        isProcessing && "cursor-not-allowed opacity-40",
+                      )}
+                    >
+                      <SubIcon className="h-4 w-4 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold">{sub.label}</p>
+                        <p className="truncate text-[11px] text-muted-foreground/75">{sub.description}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  if (item.comingSoon) {
+    return (
+      <div className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 opacity-40">
+        <ItemIcon className="h-4 w-4 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-xs font-bold text-foreground">{item.label}</p>
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground">
+              Soon
+            </span>
+          </div>
+          <p className="truncate text-[11px] text-muted-foreground">{item.description}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={item.to}
+      onClick={(e) => {
+        if (isProcessing || isActive) {
+          e.preventDefault();
+          return;
+        }
+        onNavigate();
+      }}
+      aria-current={isActive ? "page" : undefined}
+      tabIndex={isActive ? -1 : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+        isActive
+          ? "pointer-events-none cursor-default bg-primary/15 text-primary"
+          : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+        isProcessing && "cursor-not-allowed opacity-40",
+      )}
+    >
+      <ItemIcon className="h-4 w-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-bold">{item.label}</p>
+        <p className="truncate text-[11px] text-muted-foreground/75">{item.description}</p>
+      </div>
+    </Link>
   );
 }

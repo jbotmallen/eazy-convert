@@ -1,20 +1,23 @@
 import { ipcMain, app } from "electron";
 import path from "path";
-import { spawn } from "child_process";
-import { create as ytDlpCreate, YtFlags } from "yt-dlp-exec";
+import { spawn, type ChildProcess } from "child_process";
+// youtube-dl-exec (microlinkhq) — actively maintained wrapper that fetches the
+// yt-dlp binary at install time. Replaced yt-dlp-exec (Marinos33/2021, dead)
+// to eliminate a stale `node-fetch ~2.6.5` (CVE-2022-0235) and to keep the
+// wrapper code under ongoing maintenance.
+import { create as ytDlCreate, type Flags } from "youtube-dl-exec";
 import { getFfmpegPath } from "../utils/helpers.js";
 import {
   isAllowedDownloadFormat,
   isAllowedYoutubeQuality,
   isAllowedYoutubeUrl,
 } from "../utils/security.js";
-import type { ExecaChildProcess } from "execa";
 
 const getYTExecutable = () => {
   const isDev = process.env.NODE_ENV === "development";
   const relativePath = path.join(
     "node_modules",
-    "yt-dlp-exec",
+    "youtube-dl-exec",
     "bin",
     "yt-dlp.exe",
   );
@@ -25,9 +28,9 @@ const getYTExecutable = () => {
   return fullPath;
 };
 
-const ytdlpExec = ytDlpCreate(getYTExecutable()).exec;
+const ytdlpExec = ytDlCreate(getYTExecutable()).exec;
 
-type ExtendedFlags = YtFlags & {
+type ExtendedFlags = Flags & {
   jsRuntimes?: string;
   concurrentFragments?: number;
 };
@@ -54,7 +57,7 @@ function parseYtDlpError(stderr: string): string {
   return cleaned || "Download failed.";
 }
 
-const activeDownloads = new Map<number, ExecaChildProcess>();
+const activeDownloads = new Map<number, ChildProcess>();
 
 /** Check Windows registry for VC++ Redistributable 2015-2022 (v14.x). */
 function checkVcRedist(): Promise<boolean> {
@@ -182,11 +185,20 @@ export function registerDownloaderHandlers() {
         const timestamp = Math.floor(Date.now() / 1000);
         const outputTemplate = path.join(
           downloadDir,
-          `EazyConvert_YT_${timestamp}.%(ext)s`,
+          `KitBox_YT_${timestamp}.%(ext)s`,
         );
 
         const qualityHeight = parseInt(quality, 10);
-        const hasQuality = !isNaN(qualityHeight) && quality !== "best";
+        // Defence-in-depth: even though `isAllowedYoutubeQuality` already
+        // restricts `quality` to a fixed allowlist, re-assert numeric integrity
+        // immediately before interpolating into the yt-dlp `-f` selector
+        // expression so any future widening of the allowlist cannot turn this
+        // into an injection sink.
+        const hasQuality =
+          quality !== "best" &&
+          Number.isInteger(qualityHeight) &&
+          qualityHeight > 0 &&
+          qualityHeight <= 4320;
 
         const options: ExtendedFlags = {
           output: outputTemplate,
@@ -201,7 +213,7 @@ export function registerDownloaderHandlers() {
           referer: "https://www.youtube.com",
           userAgent:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          jsRuntimes: "nodejs",
+          jsRuntimes: "node",
           geoBypass: true,
           noPlaylist: true,
           concurrentFragments: 4,
@@ -216,7 +228,7 @@ export function registerDownloaderHandlers() {
         }
 
         return new Promise((resolve, reject) => {
-          const downloadProcess: ExecaChildProcess = ytdlpExec(url, options);
+          const downloadProcess = ytdlpExec(url, options) as unknown as ChildProcess;
           activeDownloads.set(event.sender.id, downloadProcess);
           let lastProgress = 0;
           let isResolved = false;

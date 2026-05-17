@@ -13,17 +13,17 @@ const TABS = [
 const GUIDES = {
   windows: {
     steps: [
-      "Download the EazyConvert-Setup-1.0.0.exe from our releases page.",
+      "Download the KitBox-Setup-1.0.0.exe from our releases page.",
       "Double-click the installer. If Windows SmartScreen appears, click 'More Info' then 'Run anyway'.",
       "Follow the installation wizard to completion.",
-      "Launch EazyConvert from your desktop—FFmpeg is already built-in and ready!",
+      "Launch KitBox from your desktop—FFmpeg is already built-in and ready!",
     ],
     requirements: ["Windows 10 or 11 (64-bit)", "4GB RAM recommended", "200MB Disk Space"],
   },
   mac: {
     steps: [
-      "Download EazyConvert-1.0.0.dmg for your architecture (Intel or Apple Silicon).",
-      "Drag EazyConvert.app to your Applications folder.",
+      "Download KitBox-1.0.0.dmg for your architecture (Intel or Apple Silicon).",
+      "Drag KitBox.app to your Applications folder.",
       "Right-click the app and select 'Open' to bypass the unidentified developer warning.",
       "The app is ready to use—no extra drivers or libraries required.",
     ],
@@ -31,7 +31,7 @@ const GUIDES = {
   },
   linux: {
     steps: [
-      "Download the EazyConvert-1.0.0.AppImage file.",
+      "Download the KitBox-1.0.0.AppImage file.",
       "Right-click the file, go to Properties > Permissions, and check 'Allow executing file as program'.",
       "Double-click to run. No installation or 'sudo' commands needed!",
       "Everything (including FFmpeg) is contained within the single AppImage file.",
@@ -54,12 +54,12 @@ const FAQ_SECTIONS: { title: string; questions: FAQItem[] }[] = [
       {
         q: "Do I need to install anything extra?",
         a: "Nope. Just install and launch — everything is already included.",
-        detail: "EazyConvert ships with its own self-contained build of FFmpeg (the engine that does the actual conversion work) baked directly into the app package. It never writes to your system PATH or conflicts with any FFmpeg you may have installed separately.",
+        detail: "KitBox ships with its own self-contained build of FFmpeg (the engine that does the actual conversion work) baked directly into the app package. It never writes to your system PATH or conflicts with any FFmpeg you may have installed separately.",
       },
       {
         q: "Is my data private?",
         a: "Yes. Your files are processed entirely on your device and never sent anywhere.",
-        detail: "EazyConvert makes zero outbound connections during file conversion. There is no telemetry, no cloud processing, and no analytics. You can verify this yourself by running it while offline — conversions work identically with no internet connection.",
+        detail: "KitBox makes zero outbound connections during file conversion. There is no telemetry, no cloud processing, and no analytics. You can verify this yourself by running it while offline — conversions work identically with no internet connection.",
       },
       {
         q: "Does it work without internet?",
@@ -79,13 +79,13 @@ const FAQ_SECTIONS: { title: string; questions: FAQItem[] }[] = [
       {
         q: "My YouTube download failed — what do I do?",
         a: "Most likely a missing Windows component. Install the Visual C++ Redistributable below and try again.",
-        detail: "The YouTube downloader bundled with EazyConvert is a native Windows binary compiled with Microsoft's C++ runtime. On fresh Windows installs or lean systems, this runtime may not be present. It's a free Microsoft package that many Windows apps require.",
+        detail: "The YouTube downloader bundled with KitBox is a native Windows binary compiled with Microsoft's C++ runtime. On fresh Windows installs or lean systems, this runtime may not be present. It's a free Microsoft package that many Windows apps require.",
         link: { label: "Download Visual C++ Redistributable (Microsoft)", url: "https://aka.ms/vs/17/release/vc_redist.x64.exe" },
       },
       {
         q: "Does installation need admin access?",
         a: "Yes, but only once during setup. After that, it runs like any normal app.",
-        detail: "The installer writes files to Program Files and registers an entry in Add/Remove Programs — both require administrator rights. Once installed, EazyConvert runs entirely under your standard user account with no elevated permissions needed.",
+        detail: "The installer writes files to Program Files and registers an entry in Add/Remove Programs — both require administrator rights. Once installed, KitBox runs entirely under your standard user account with no elevated permissions needed.",
       },
     ],
   },
@@ -115,7 +115,7 @@ const FAQ_SECTIONS: { title: string; questions: FAQItem[] }[] = [
       {
         q: "Is conversion fast on Linux?",
         a: "Yes. It uses your GPU automatically when available, and falls back to CPU otherwise.",
-        detail: "EazyConvert attempts to use VA-API (Intel/AMD GPUs) or NVENC (NVIDIA GPUs) for hardware-accelerated video encoding. If your drivers don't expose these interfaces, it falls back to multi-threaded software encoding using libx264 or libvpx. No configuration needed.",
+        detail: "KitBox attempts to use VA-API (Intel/AMD GPUs) or NVENC (NVIDIA GPUs) for hardware-accelerated video encoding. If your drivers don't expose these interfaces, it falls back to multi-threaded software encoding using libx264 or libvpx. No configuration needed.",
       },
     ],
   },
@@ -210,7 +210,7 @@ export function GuidePage() {
   const [activeTab, setActiveTab] = useState("windows");
 
   return (
-    <div className="container relative z-10 mx-auto max-w-5xl px-4 py-12">
+    <div className="container relative z-10 mx-auto max-w-6xl px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -220,7 +220,7 @@ export function GuidePage() {
           Guide & Support
         </h1>
         <p className="text-lg font-medium text-muted-foreground italic">
-          Everything you need to master EazyConvert.
+          Everything you need to master KitBox.
         </p>
       </motion.div>
 
@@ -334,7 +334,7 @@ export function GuidePage() {
                     Built-in Engine
                   </h3>
                   <p className="text-sm font-medium text-muted-foreground italic leading-relaxed">
-                    EazyConvert uses a specialized internal version of FFmpeg. You don't need to download anything else to start converting.
+                    KitBox uses a specialized internal version of FFmpeg. You don't need to download anything else to start converting.
                   </p>
                 </div>
               </div>

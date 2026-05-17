@@ -13,18 +13,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
-import { cn } from "@/lib/utils";
+import { cn, showErrorToast } from "@/lib/utils";
 
 type OutputFormat = "text" | "html" | "docx" | "images";
 
 const OUTPUT_OPTIONS: { id: OutputFormat; label: string; ext: string; icon: React.ElementType; hint?: string }[] = [
-  { id: "text",   label: "Text",    ext: ".txt",  icon: AlignLeft  },
-  { id: "html",   label: "HTML",    ext: ".html", icon: FileCode2  },
-  { id: "docx",   label: "Word",    ext: ".docx", icon: FileText   },
-  { id: "images", label: "Images",  ext: ".zip",  icon: ImageIcon, hint: "Pages → ZIP" },
+  { id: "text", label: "Text", ext: ".txt", icon: AlignLeft },
+  { id: "html", label: "HTML", ext: ".html", icon: FileCode2 },
+  { id: "docx", label: "Word", ext: ".docx", icon: FileText },
+  { id: "images", label: "Images", ext: ".zip", icon: ImageIcon, hint: "Pages → ZIP" },
 ];
 
 const VALID_FORMATS = OUTPUT_OPTIONS.map((o) => o.id);
@@ -39,12 +38,12 @@ export function PdfConverterPage() {
   const [outputPath, setOutputPath] = useState<string | null>(null);
   const { setIsProcessing } = useProcessing();
 
-  const { files, setFiles, isDragOver, toast, setToast, handlePickFiles, handleDragOver, handleDragLeave, handleDrop } =
+  const { files, setFiles, isDragOver, handlePickFiles, handleDragOver, handleDragLeave, handleDrop } =
     useDocumentFileState("pdf", false);
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Select a PDF file first.", type: "error" });
+      showErrorToast("Select a PDF file first.");
       return;
     }
     setStatus("processing");
@@ -53,16 +52,16 @@ export function PdfConverterPage() {
     try {
       let result: string;
       switch (outputFormat) {
-        case "text":   result = await window.api.document.pdfToText(files[0].id);   break;
-        case "html":   result = await window.api.document.pdfToHtml(files[0].id);   break;
-        case "docx":   result = await window.api.document.pdfToDocx(files[0].id);   break;
+        case "text": result = await window.api.document.pdfToText(files[0].id); break;
+        case "html": result = await window.api.document.pdfToHtml(files[0].id); break;
+        case "docx": result = await window.api.document.pdfToDocx(files[0].id); break;
         case "images": result = await window.api.document.pdfToImages(files[0].id); break;
       }
       setOutputPath(result);
       setStatus("success");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Conversion failed.", type: "error" });
+      showErrorToast(err, "Conversion failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -72,12 +71,20 @@ export function PdfConverterPage() {
   const ActiveIcon = activeOpt.icon;
   const filename = files[0]?.name;
   const outputFilename = outputPath?.split(/[/\\]/).pop();
+  const handleShowInFolder = async () => {
+    if (!outputPath) return;
+    try {
+      await window.api.document.showInFolder(outputPath);
+    } catch (err) {
+      showErrorToast(err);
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -107,7 +114,7 @@ export function PdfConverterPage() {
                   }}
                   disabled={status === "processing"}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-2xl border transition-all duration-200 text-center",
+                    "flex-1 flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-2xl border transition-all duration-200 text-center",
                     isActive
                       ? "bg-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10"
                       : "bg-card/30 border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30",
@@ -133,7 +140,7 @@ export function PdfConverterPage() {
               isDragOver
                 ? "border-primary bg-primary/5 scale-[1.01]"
                 : "border-border/50 hover:border-primary/40 hover:bg-muted/10",
-              files.length > 0 && !isDragOver && "border-primary/30 bg-primary/[0.03]",
+              files.length > 0 && !isDragOver && "border-primary/30 bg-primary/3",
               status === "processing" && "pointer-events-none opacity-60",
             )}
             onClick={status !== "processing" ? handlePickFiles : undefined}
@@ -190,7 +197,7 @@ export function PdfConverterPage() {
                   <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{outputFilename}</p>
                   <button
                     type="button"
-                    onClick={() => window.api.document.showInFolder(outputPath)}
+                    onClick={handleShowInFolder}
                     className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline mt-1.5"
                   >
                     <FolderOpen className="h-3 w-3" />
@@ -223,7 +230,6 @@ export function PdfConverterPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

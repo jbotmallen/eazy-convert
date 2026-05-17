@@ -1,0 +1,48 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      electron:
+        patterns:
+          - "electron"
+          - "electron-builder"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router-dom"
+      radix:
+        patterns:
+          - "@radix-ui/*"
+      types:
+        patterns:
+          - "@types/*"
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "typescript-eslint"
+    ignore:
+      # Pin majors that require manual migration review; security patches
+      # within the current major still flow through.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "ci"

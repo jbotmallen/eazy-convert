@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileCode2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { FileList } from "@/pages/document-converter/FileList";
 import { SuccessMessage } from "@/pages/document-converter/SuccessMessage";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
-import { cn } from "@/lib/utils";
+import { cn, showErrorToast, showSuccessToast } from "@/lib/utils";
 import type { Operation } from "@/pages/document-converter/constants";
 
 type ConvertOp = "docx-to-html" | "docx-to-text";
@@ -75,7 +74,7 @@ export function DocConverterPage() {
   const activeOpt = CONVERT_OPTIONS.find((o) => o.id === activeId)!;
   const op = buildOp(activeOpt);
 
-  const { files, setFiles, isDragOver, toast, setToast, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, removeFile, clearFiles } =
+  const { files, setFiles, isDragOver, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, removeFile, clearFiles } =
     useDocumentFileState(activeOpt.fileType, false);
 
   // Sync URL param → selected op (e.g. when navigating from navbar)
@@ -98,7 +97,7 @@ export function DocConverterPage() {
 
   const handleRun = async () => {
     if (files.length === 0) {
-      setToast({ message: "Select a file first.", type: "error" });
+      showErrorToast("Select a file first.");
       return;
     }
     setStatus("processing");
@@ -116,10 +115,10 @@ export function DocConverterPage() {
       }
       setOutputPath(result);
       setStatus("success");
-      setToast({ message: "Done! Saved next to your source file.", type: "success" });
+      showSuccessToast("Done! Saved next to your source file.");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Conversion failed.", type: "error" });
+      showErrorToast(err, "Conversion failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -131,7 +130,7 @@ export function DocConverterPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -156,7 +155,7 @@ export function DocConverterPage() {
                   onClick={() => handleOpChange(opt.id)}
                   disabled={status === "processing"}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-2xl border transition-all duration-200 text-center",
+                    "flex-1 flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-2xl border transition-all duration-200 text-center w-full",
                     isActive
                       ? "bg-primary/10 border-primary/40 text-primary shadow-lg shadow-primary/10"
                       : "bg-card/30 border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30",
@@ -190,7 +189,7 @@ export function DocConverterPage() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                onMoveFile={() => {}}
+                onMoveFile={() => { }}
                 onRemoveFile={removeFile}
                 onRemoveAll={() => setFiles([])}
               />
@@ -228,7 +227,6 @@ export function DocConverterPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

@@ -5,13 +5,16 @@ import {
   Plus,
   X,
   CheckCircle,
+  FileOutput,
   Loader2,
   AlertCircle,
   Minus,
+  FolderOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field-label";
 import {
   Card,
   CardContent,
@@ -28,15 +31,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { SimpleToast } from "@/components/ui/simple-toast";
-import { cn } from "@/lib/utils";
+import { cn, getUserErrorMessage, showErrorToast, showSuccessToast } from "@/lib/utils";
 import { useProcessing } from "@/context/useProcessing";
 
 const FORMATS = [
-  { value: "mp3",  label: "MP3 — High Quality" },
-  { value: "ogg",  label: "OGG — Vorbis Engine" },
-  { value: "wav",  label: "WAV — Lossless Master" },
-  { value: "aac",  label: "AAC — Mobile Standard" },
+  { value: "mp3", label: "MP3 — High Quality" },
+  { value: "ogg", label: "OGG — Vorbis Engine" },
+  { value: "wav", label: "WAV — Lossless Master" },
+  { value: "aac", label: "AAC — Mobile Standard" },
   { value: "flac", label: "FLAC — Lossless Compression" },
 ];
 
@@ -52,6 +54,7 @@ interface FileItem {
   status: FileStatus;
   progress: number;
   error?: string;
+  outputPath?: string;
 }
 
 function getExt(filename: string): string {
@@ -59,13 +62,12 @@ function getExt(filename: string): string {
 }
 
 export function AudioConverterPage() {
-  const [files, setFiles]               = useState<FileItem[]>([]);
-  const [format, setFormat]             = useState("mp3");
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [format, setFormat] = useState("mp3");
   const [isConverting, setIsConverting] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
-  const [isDragOver, setIsDragOver]     = useState(false);
-  const [toast, setToast]               = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const { setIsProcessing }             = useProcessing();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const { setIsProcessing } = useProcessing();
 
   const cancelledRef = useRef(false);
   const currentIdRef = useRef<string | null>(null);
@@ -137,18 +139,18 @@ export function AudioConverterPage() {
       }
 
       currentIdRef.current = file.id;
-      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "converting", progress: 0 } : f));
+      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "converting", progress: 0, outputPath: undefined } : f));
 
       try {
-        await window.api.convert(file.fileId, format);
-        setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "done", progress: 100 } : f));
+        const outputPath = await window.api.convert(file.fileId, format);
+        setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "done", progress: 100, outputPath } : f));
         doneCount++;
       } catch (err) {
         if (cancelledRef.current) {
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "pending", progress: 0 } : f));
+          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "pending", progress: 0, outputPath: undefined } : f));
         } else {
-          const msg = err instanceof Error ? err.message : "Conversion failed.";
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "error", error: msg } : f));
+          const msg = getUserErrorMessage(err, "Conversion failed.");
+          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "error", error: msg, outputPath: undefined } : f));
         }
       }
 
@@ -161,14 +163,22 @@ export function AudioConverterPage() {
     setIsProcessing(false);
 
     if (!cancelledRef.current && doneCount > 0) {
-      setToast({ message: `${doneCount} file${doneCount !== 1 ? "s" : ""} converted successfully.`, type: "success" });
+      showSuccessToast(`${doneCount} file${doneCount !== 1 ? "s" : ""} converted successfully.`);
     }
   };
 
   const handleCancel = () => { cancelledRef.current = true; window.api.cancelConvert(); };
 
-  const isEmpty      = files.length === 0;
-  const convertible  = files.filter(f => f.status === "pending" || f.status === "error");
+  const showInFolder = async (outputPath: string) => {
+    try {
+      await window.api.audio.showInFolder(outputPath);
+    } catch (err) {
+      showErrorToast(err);
+    }
+  };
+
+  const isEmpty = files.length === 0;
+  const convertible = files.filter(f => f.status === "pending" || f.status === "error");
   const hasCompleted = files.some(f => f.status === "done" || f.status === "skipped");
 
   return (
@@ -176,7 +186,7 @@ export function AudioConverterPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full border-border bg-card/40 shadow-2xl backdrop-blur-md overflow-hidden font-sans">
         <CardHeader className="text-center pb-8 border-b border-border/50 bg-muted/5">
@@ -192,9 +202,7 @@ export function AudioConverterPage() {
         <CardContent className="pt-10 space-y-8">
           {/* Format selector */}
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-              Target Export Format
-            </label>
+            <FieldLabel icon={FileOutput}>Target Export Format</FieldLabel>
             <Select value={format} onValueChange={setFormat} disabled={isConverting}>
               <SelectTrigger className="h-14 text-lg font-bold border-2 uppercase italic bg-transparent">
                 <SelectValue />
@@ -281,57 +289,74 @@ export function AudioConverterPage() {
                       className="overflow-hidden"
                     >
                       <div className={cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors",
-                        file.status === "done"       && "border-green-500/30 bg-green-500/5",
-                        file.status === "error"      && "border-destructive/30 bg-destructive/5",
+                        "rounded-xl border px-4 py-3 transition-colors",
+                        file.status === "done" && "border-green-500/30 bg-green-500/5",
+                        file.status === "error" && "border-destructive/30 bg-destructive/5",
                         file.status === "converting" && "border-primary/40 bg-primary/5",
-                        file.status === "skipped"    && "border-border/30 bg-muted/10",
-                        file.status === "pending"    && "border-border/50 bg-muted/20",
+                        file.status === "skipped" && "border-border/30 bg-muted/10",
+                        file.status === "pending" && "border-border/50 bg-muted/20",
                       )}>
-                        <FileAudio className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        <span className="flex-1 text-sm font-medium truncate min-w-0" title={file.name}>
-                          {file.name}
-                        </span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex-shrink-0 hidden sm:block">
-                          .{file.ext} → .{format}
-                        </span>
-                        <span className="flex-shrink-0 w-28 flex justify-end items-center">
-                          {file.status === "pending" && (
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ready</span>
-                          )}
-                          {file.status === "converting" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              {file.progress}%
-                            </span>
-                          )}
-                          {file.status === "done" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500">
-                              <CheckCircle className="h-3 w-3" />
-                              Done
-                            </span>
-                          )}
-                          {file.status === "skipped" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground" title="Same format — skipped">
-                              <Minus className="h-3 w-3" />
-                              Skipped
-                            </span>
-                          )}
-                          {file.status === "error" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive" title={file.error}>
-                              <AlertCircle className="h-3 w-3" />
-                              Error
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(file.id)}
-                          disabled={isConverting && file.status === "converting"}
-                          className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors ml-1"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <FileAudio className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="flex-1 text-sm font-medium truncate min-w-0" title={file.name}>
+                            {file.name}
+                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 shrink-0 hidden sm:block">
+                            .{file.ext} → .{format}
+                          </span>
+                          <span className="shrink-0 w-28 flex justify-end items-center">
+                            {file.status === "pending" && (
+                              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ready</span>
+                            )}
+                            {file.status === "converting" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {file.progress}%
+                              </span>
+                            )}
+                            {file.status === "done" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500">
+                                <CheckCircle className="h-3 w-3" />
+                                Done
+                              </span>
+                            )}
+                            {file.status === "skipped" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground" title="Same format — skipped">
+                                <Minus className="h-3 w-3" />
+                                Skipped
+                              </span>
+                            )}
+                            {file.status === "error" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive" title={file.error}>
+                                <AlertCircle className="h-3 w-3" />
+                                Error
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(file.id)}
+                            disabled={isConverting && file.status === "converting"}
+                            className="shrink-0 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors ml-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {file.status === "done" && file.outputPath && (
+                          <div className="mt-3 flex items-center gap-3 border-t border-green-500/15 pt-3">
+                            <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground" title={file.outputPath}>
+                              {file.outputPath}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => showInFolder(file.outputPath!)}
+                              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-green-500/30 px-2.5 text-[11px] font-bold text-green-600 transition-colors hover:bg-green-500/10"
+                            >
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              Open
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -410,12 +435,11 @@ export function AudioConverterPage() {
         <CardFooter className="justify-center border-t border-border/50 bg-muted/10 py-8">
           <p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
             <CheckCircle className="h-4 w-4 text-primary" />
-            Fast Local Engine — Powered by EazyConvert
+            Fast Local Engine — Powered by KitBox
           </p>
         </CardFooter>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

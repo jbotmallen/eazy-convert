@@ -1,4 +1,4 @@
-import { ArrowRight, FileAudio, HelpCircle, Image as ImageIcon, Video, Youtube } from "lucide-react";
+import { ArrowRight, Eraser, FileAudio, HelpCircle, Image as ImageIcon, LayoutGrid, Minimize2, Scissors, Sparkles, Video, Wand2, Youtube } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,58 @@ const tools = [
     icon: ImageIcon,
   },
   {
+    to: "/images/compress",
+    label: "Image Compressor",
+    description: "Shrink static images with presets, quality controls, and local FFmpeg output.",
+    icon: Minimize2,
+  },
+  {
+    to: "/images/remove-background",
+    label: "Background Remover",
+    description: "Remove image backgrounds and export transparent PNG or WEBP files.",
+    icon: Eraser,
+  },
+  {
     to: "/videos",
     label: "Video Converter",
     description: "Convert MP4, WEBM, AVI, MOV, and MKV with FFmpeg.",
     icon: Video,
   },
   {
+    to: "/videos/trim",
+    label: "Video Trimmer",
+    description: "Cut a local video into a shorter clip.",
+    icon: Scissors,
+  },
+  {
+    to: "/videos/compress",
+    label: "Video Compressor",
+    description: "Shrink local videos into MP4 files with preset compression.",
+    icon: Minimize2,
+  },
+  {
+    to: "/videos/denoise",
+    label: "Video Denoiser",
+    description: "Remove background noise from video audio track.",
+    icon: Wand2,
+  },
+  {
     to: "/audio",
     label: "Audio Converter",
     description: "Convert MP3, WAV, OGG, AAC, FLAC, and M4A.",
     icon: FileAudio,
+  },
+  {
+    to: "/audio/trim",
+    label: "Audio Trimmer",
+    description: "Cut a local audio file into a shorter track.",
+    icon: Scissors,
+  },
+  {
+    to: "/audio/denoise",
+    label: "Audio Denoiser",
+    description: "Clean hiss, hum, and background noise from recordings.",
+    icon: Wand2,
   },
   {
     to: "/youtube",
@@ -43,13 +85,15 @@ export function AppHomePage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="mx-auto max-w-5xl"
+        className="mx-auto max-w-6xl"
       >
         <div className="mb-12 max-w-3xl">
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-primary">
+          <p className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.28em] text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
             Desktop workspace
           </p>
-          <h1 className="text-5xl font-black uppercase italic leading-none tracking-tighter md:text-7xl">
+          <h1 className="flex items-center gap-4 text-5xl font-black uppercase italic leading-none tracking-tighter md:text-7xl">
+            <LayoutGrid className="h-12 w-12 shrink-0 text-primary md:h-16 md:w-16" />
             Pick converter
           </h1>
           <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-muted-foreground md:text-lg">

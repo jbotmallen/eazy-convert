@@ -17,9 +17,17 @@ import {
 } from "lucide-react";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import heroImage from "../../public/main.png";
-import logo from "../../public/logo.png";
+import heroImage from "/main.png";
+import logo from "/logo.png";
 import { cn } from "@/lib/utils";
+import { openLink } from "@/lib/openLink";
+
+function handleExternal(url: string) {
+  return (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    openLink(url);
+  };
+}
 
 const links = {
   release: "https://github.com/jbotmallen/eazy-convert/releases/tag/v1.0.0",
@@ -60,10 +68,10 @@ const formats = [
 ];
 
 const roadmap = [
-  "Cloud-safe web demo mode",
-  "Image compression and background removal",
-  "Video trimming and compression",
-  "Audio splitting and denoise tools",
+  "More local batch automation",
+  "Reusable compression and trim presets",
+  "Advanced PDF cleanup tools",
+  "Offline queue history and retry controls",
   "Signed releases with automated checksums",
 ];
 
@@ -93,16 +101,6 @@ export function LandingPage({ landingOnly = false }: LandingPageProps) {
           landingOnly ? "pt-12 md:pt-16" : "-mt-18 pt-34",
         )}
       >
-        <div className="absolute inset-0 -z-10">
-          <img
-            src={heroImage}
-            alt="EazyConvert desktop converter interface"
-            className="h-full w-full object-cover opacity-28 dark:opacity-24"
-          />
-          <div className="absolute inset-0 bg-background/86 dark:bg-background/80" />
-          <div className="absolute inset-x-0 bottom-0 h-44 bg-linear-to-t from-background to-transparent" />
-        </div>
-
         <div className="container mx-auto grid min-h-[calc(100svh-8.5rem)] items-center gap-12 px-4 pb-16 lg:grid-cols-[0.88fr_1.12fr]">
           <motion.div
             initial={{ opacity: 0, y: 18 }}
@@ -113,27 +111,27 @@ export function LandingPage({ landingOnly = false }: LandingPageProps) {
             <div className="mb-6 flex items-center gap-3">
               <img src={logo} alt="" className="h-12 w-12 rounded-lg border border-primary/25 bg-background/80 p-1" />
               <div>
-                <p className="text-sm font-black uppercase italic tracking-tight">EazyConvert</p>
+                <p className="text-sm font-black uppercase italic tracking-tight">KitBox</p>
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-primary">Version 1.0</p>
               </div>
             </div>
 
-            <h1 className="max-w-4xl text-6xl font-black uppercase italic leading-[0.9] tracking-tighter md:text-8xl">
-              Private desktop file conversion
+            <h1 className="max-w-6xl text-6xl font-black uppercase italic leading-[0.9] tracking-tighter md:text-8xl">
+              Local-first digital toolkit
             </h1>
             <p className="mt-7 max-w-2xl text-base font-medium leading-7 text-muted-foreground md:text-xl md:leading-8">
-              Convert media and documents locally with a fast Electron app built around FFmpeg, PDF tooling, DOCX parsing, and Markdown export.
+              Convert, compress, trim, clean up, and export media and documents locally with a fast Electron app built around FFmpeg, PDF tooling, DOCX parsing, and Markdown export.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="h-13 gap-2 px-7 text-base font-black">
-                <a href={links.release} target="_blank" rel="noreferrer">
+                <a href={links.release} target="_blank" rel="noreferrer" onClick={handleExternal(links.release)}>
                   <Download className="h-5 w-5" />
                   Download v1.0
                 </a>
               </Button>
               <Button asChild size="lg" variant="outline" className="h-13 gap-2 border-2 px-7 text-base font-black">
-                <a href={links.repo} target="_blank" rel="noreferrer">
+                <a href={links.repo} target="_blank" rel="noreferrer" onClick={handleExternal(links.repo)}>
                   <Github className="h-5 w-5" />
                   View Source
                 </a>
@@ -233,7 +231,7 @@ export function LandingPage({ landingOnly = false }: LandingPageProps) {
             </div>
             <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-primary">Future Roadmap</p>
             <h2 className="text-4xl font-black uppercase italic tracking-tighter md:text-6xl">
-              Next tools after desktop v1
+              Next local tools after desktop v1
             </h2>
           </div>
 
@@ -274,12 +272,12 @@ export function LandingPage({ landingOnly = false }: LandingPageProps) {
                 </a>
               </Button>
               <Button asChild variant="outline" className="h-12 justify-between gap-3 border-2 font-black">
-                <a href={links.github} target="_blank" rel="noreferrer">
+                <a href={links.github} target="_blank" rel="noreferrer" onClick={handleExternal(links.github)}>
                   GitHub <Github className="h-5 w-5" />
                 </a>
               </Button>
               <Button asChild variant="outline" className="h-12 justify-between gap-3 border-2 font-black">
-                <a href={links.linkedin} target="_blank" rel="noreferrer">
+                <a href={links.linkedin} target="_blank" rel="noreferrer" onClick={handleExternal(links.linkedin)}>
                   LinkedIn <Linkedin className="h-5 w-5" />
                 </a>
               </Button>
@@ -290,6 +288,7 @@ export function LandingPage({ landingOnly = false }: LandingPageProps) {
             href={links.release}
             target="_blank"
             rel="noreferrer"
+            onClick={handleExternal(links.release)}
             className="group mt-10 inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary"
           >
             Download release build

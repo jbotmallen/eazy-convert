@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FilePlus2, Loader2 } from "lucide-react";
+import { FilePlus2, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { SimpleToast } from "@/components/ui/simple-toast";
 import { FileList } from "@/pages/document-converter/FileList";
 import { SuccessMessage } from "@/pages/document-converter/SuccessMessage";
 import { OPERATIONS } from "@/pages/document-converter/constants";
 import { useDocumentFileState } from "@/hooks/useDocumentFileState";
 import { useProcessing } from "@/context/useProcessing";
+import { showErrorToast, showSuccessToast } from "@/lib/utils";
 
 const op = OPERATIONS.find((o) => o.id === "merge")!;
 
@@ -17,12 +17,12 @@ export function MergePdfPage() {
   const [outputPath, setOutputPath] = useState<string | null>(null);
   const { setIsProcessing } = useProcessing();
 
-  const { files, setFiles, isDragOver, toast, setToast, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, moveFile, removeFile } =
+  const { files, setFiles, isDragOver, handlePickFiles, handleDragOver, handleDragLeave, handleDrop, moveFile, removeFile } =
     useDocumentFileState("pdf", true);
 
   const handleRun = async () => {
     if (files.length < 2) {
-      setToast({ message: "Add at least 2 PDFs to merge.", type: "error" });
+      showErrorToast("Add at least 2 PDFs to merge.");
       return;
     }
     setStatus("processing");
@@ -32,10 +32,10 @@ export function MergePdfPage() {
       const result = await window.api.document.merge(files.map((file) => file.id));
       setOutputPath(result);
       setStatus("success");
-      setToast({ message: "Done! Saved next to your source file.", type: "success" });
+      showSuccessToast("Done! Saved next to your source file.");
     } catch (err: unknown) {
       setStatus("error");
-      setToast({ message: (err as Error)?.message || "Merge failed.", type: "error" });
+      showErrorToast(err, "Merge failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -45,7 +45,7 @@ export function MergePdfPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full bg-card/40 border-border/50 shadow-2xl backdrop-blur-md overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-muted/5 pb-6">
@@ -74,7 +74,8 @@ export function MergePdfPage() {
           />
 
           {files.length === 1 && (
-            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest text-center">
+            <p className="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground/60 uppercase tracking-widest text-center">
+              <Info className="h-3.5 w-3.5" />
               Add at least one more PDF to enable merging.
             </p>
           )}
@@ -110,7 +111,6 @@ export function MergePdfPage() {
         </CardContent>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }

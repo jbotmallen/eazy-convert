@@ -4,7 +4,17 @@ import path from "path";
 export const MAX_DOCUMENT_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 
 const EXTERNAL_PROTOCOLS = new Set(["https:"]);
-const EXTERNAL_HOSTS = new Set(["aka.ms"]);
+// Desktop allowlist. Stricter than the web build: every host here must be reachable
+// from a button shipped inside the packaged app (landing page + in-app links).
+// The landing page itself runs unrestricted in a regular browser, so this list
+// only governs window.api.openExternal calls from the Electron renderer.
+const EXTERNAL_HOSTS = new Set([
+  "aka.ms",
+  "github.com",
+  "www.github.com",
+  "linkedin.com",
+  "www.linkedin.com",
+]);
 const YOUTUBE_HOSTS = new Set([
   "youtube.com",
   "www.youtube.com",
@@ -78,13 +88,38 @@ export function assertExistingDocumentPath(filePath: string, allowedExts: readon
   }
 }
 
-export function assertDocumentFileWithinLimit(filePath: string): void {
-  const stat = fs.statSync(filePath);
+export function assertStatWithinDocumentLimit(stat: fs.Stats): void {
   if (!stat.isFile()) {
     throw new Error("Document file not found.");
   }
   if (stat.size > MAX_DOCUMENT_FILE_SIZE_BYTES) {
     throw new Error("Document is too large. Maximum allowed size is 100 MiB.");
+  }
+}
+
+export function assertDocumentFileWithinLimit(filePath: string): void {
+  assertStatWithinDocumentLimit(fs.statSync(filePath));
+}
+
+// Reads a file fully while enforcing the document size limit against the same
+// file descriptor used for the read. Opening once and validating via fstat
+// closes the time-of-check/time-of-use gap — the file cannot be swapped for a
+// different (e.g. oversized) one between the size check and the read.
+export function readFileWithinDocumentLimit(filePath: string): Buffer {
+  const fd = fs.openSync(filePath, "r");
+  try {
+    const stat = fs.fstatSync(fd);
+    assertStatWithinDocumentLimit(stat);
+    const buffer = Buffer.alloc(stat.size);
+    let offset = 0;
+    while (offset < stat.size) {
+      const bytesRead = fs.readSync(fd, buffer, offset, stat.size - offset, offset);
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    return offset === stat.size ? buffer : buffer.subarray(0, offset);
+  } finally {
+    fs.closeSync(fd);
   }
 }
 

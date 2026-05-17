@@ -19,6 +19,9 @@ test("public landing page includes supplied product links and contact channels",
   assert.match(source, /mailto:markosallenus@gmail\.com/);
   assert.match(source, /https:\/\/www\.linkedin\.com\/in\/mark-allen-jugalbot-b60a5a1b6\//);
   assert.match(source, /Future Roadmap/);
+  assert.match(source, /Next local tools after desktop v1/);
+  assert.match(source, /Reusable compression and trim presets/);
+  assert.doesNotMatch(source, /Cloud-safe web demo mode/);
   assert.match(source, /Contact Me/);
 });
 
@@ -29,6 +32,13 @@ test("desktop tool launcher remains available on a separate app route", () => {
   assert.match(appSource, /AppHomePage/);
   assert.match(appSource, /path="\/app"/);
   assert.match(navbarSource, /to="\/app"/);
+});
+
+test("navbar GitHub source control opens in the default browser", () => {
+  const navbarSource = readSource("src/components/Navbar.tsx");
+
+  assert.match(navbarSource, /window\.api\.openExternal\("https:\/\/github\.com\/jbotmallen\/eazy-convert"\)/);
+  assert.doesNotMatch(navbarSource, /to="https:\/\/github\.com\/jbotmallen\/eazy-convert"/);
 });
 
 test("landing-only web mode hides app chrome and redirects every route to landing", () => {

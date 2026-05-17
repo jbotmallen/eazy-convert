@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   FileImage,
   Image as ImageIcon,
   Plus,
   X,
   CheckCircle,
+  FileOutput,
   Loader2,
   AlertCircle,
   Minus,
+  FolderOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field-label";
 import {
   Card,
   CardContent,
@@ -28,14 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { SimpleToast } from "@/components/ui/simple-toast";
-import { cn } from "@/lib/utils";
+import { cn, getUserErrorMessage, showErrorToast, showSuccessToast } from "@/lib/utils";
 import { useProcessing } from "@/context/useProcessing";
 
 const FORMATS = [
   { value: "webp", label: "WEBP — Ultra Efficiency" },
-  { value: "png",  label: "PNG — Lossless Quality" },
-  { value: "jpg",  label: "JPG — High Compatibility" },
+  { value: "png", label: "PNG — Lossless Quality" },
+  { value: "jpg", label: "JPG — High Compatibility" },
+  { value: "pdf", label: "PDF — Multi-page Document" },
 ];
 
 const ALLOWED_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
@@ -46,10 +50,11 @@ interface FileItem {
   id: string;
   fileId: string;
   name: string;
-  ext: string; // normalised (jpeg → jpg)
+  ext: string;
   status: FileStatus;
   progress: number;
   error?: string;
+  outputPath?: string;
 }
 
 function normaliseExt(filename: string): string {
@@ -58,16 +63,23 @@ function normaliseExt(filename: string): string {
 }
 
 export function ImageConverterPage() {
-  const [files, setFiles]               = useState<FileItem[]>([]);
-  const [format, setFormat]             = useState("webp");
+  const [searchParams] = useSearchParams();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [format, setFormat] = useState(() => searchParams.get("to") === "pdf" ? "pdf" : "webp");
   const [isConverting, setIsConverting] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
-  const [isDragOver, setIsDragOver]     = useState(false);
-  const [toast, setToast]               = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const { setIsProcessing }             = useProcessing();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [pdfOutputPath, setPdfOutputPath] = useState<string | null>(null);
+  const { setIsProcessing } = useProcessing();
 
-  const cancelledRef      = useRef(false);
-  const currentIdRef      = useRef<string | null>(null);
+  const cancelledRef = useRef(false);
+  const currentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("to") === "pdf") {
+      setFormat("pdf");
+    }
+  }, [searchParams]);
 
   // Per-file progress updates
   useEffect(() => {
@@ -135,10 +147,31 @@ export function ImageConverterPage() {
     setIsProcessing(true);
     setIsConverting(true);
     setOverallProgress(0);
+    setPdfOutputPath(null);
 
     let completed = 0;
     const total = queue.length;
     let doneCount = 0;
+
+    if (format === "pdf") {
+      try {
+        setFiles(prev => prev.map(f => queue.some(q => q.id === f.id) ? { ...f, status: "converting", progress: 0, outputPath: undefined } : f));
+        const result = await window.api.image.toPdf(files.map((file) => file.fileId));
+        setPdfOutputPath(result);
+        setFiles(prev => prev.map(f => queue.some(q => q.id === f.id) ? { ...f, status: "done", progress: 100, outputPath: result } : f));
+        setOverallProgress(100);
+        showSuccessToast("PDF created successfully.");
+      } catch (err) {
+        const msg = getUserErrorMessage(err, "PDF conversion failed.");
+        setFiles(prev => prev.map(f => queue.some(q => q.id === f.id) ? { ...f, status: "error", error: msg, outputPath: undefined } : f));
+        showErrorToast(msg);
+      } finally {
+        currentIdRef.current = null;
+        setIsConverting(false);
+        setIsProcessing(false);
+      }
+      return;
+    }
 
     for (const file of queue) {
       if (cancelledRef.current) break;
@@ -152,19 +185,19 @@ export function ImageConverterPage() {
       }
 
       currentIdRef.current = file.id;
-      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "converting", progress: 0 } : f));
+      setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "converting", progress: 0, outputPath: undefined } : f));
 
       try {
-        await window.api.convert(file.fileId, format);
-        setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "done", progress: 100 } : f));
+        const outputPath = await window.api.convert(file.fileId, format);
+        setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "done", progress: 100, outputPath } : f));
         doneCount++;
       } catch (err) {
         if (cancelledRef.current) {
           // Restore to pending so the user can retry
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "pending", progress: 0 } : f));
+          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "pending", progress: 0, outputPath: undefined } : f));
         } else {
-          const msg = err instanceof Error ? err.message : "Conversion failed.";
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "error", error: msg } : f));
+          const msg = getUserErrorMessage(err, "Conversion failed.");
+          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: "error", error: msg, outputPath: undefined } : f));
         }
       }
 
@@ -177,7 +210,7 @@ export function ImageConverterPage() {
     setIsProcessing(false);
 
     if (!cancelledRef.current && doneCount > 0) {
-      setToast({ message: `${doneCount} file${doneCount !== 1 ? "s" : ""} converted successfully.`, type: "success" });
+      showSuccessToast(`${doneCount} file${doneCount !== 1 ? "s" : ""} converted successfully.`);
     }
   };
 
@@ -186,16 +219,25 @@ export function ImageConverterPage() {
     window.api.cancelConvert();
   };
 
-  const isEmpty        = files.length === 0;
-  const convertible    = files.filter(f => f.status === "pending" || f.status === "error");
-  const hasCompleted   = files.some(f => f.status === "done" || f.status === "skipped");
+  const showInFolder = async (outputPath: string) => {
+    try {
+      await window.api.image.showInFolder(outputPath);
+    } catch (err) {
+      showErrorToast(err);
+    }
+  };
+
+  const isEmpty = files.length === 0;
+  const convertible = files.filter(f => f.status === "pending" || f.status === "error");
+  const hasCompleted = files.some(f => f.status === "done" || f.status === "skipped");
+  const actionLabel = format === "pdf" ? "Create PDF" : `Convert ${convertible.length} File${convertible.length !== 1 ? "s" : ""}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="container mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-16"
+      className="container mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-16"
     >
       <Card className="w-full border-border bg-card/40 shadow-2xl backdrop-blur-md overflow-hidden font-sans">
         <CardHeader className="text-center pb-8 border-b border-border/50 bg-muted/5">
@@ -211,10 +253,15 @@ export function ImageConverterPage() {
         <CardContent className="pt-10 space-y-8">
           {/* Format selector */}
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-              Target Export Format
-            </label>
-            <Select value={format} onValueChange={setFormat} disabled={isConverting}>
+            <FieldLabel icon={FileOutput}>Target Export Format</FieldLabel>
+            <Select
+              value={format}
+              onValueChange={(value) => {
+                setFormat(value);
+                setPdfOutputPath(null);
+              }}
+              disabled={isConverting}
+            >
               <SelectTrigger className="h-14 text-lg font-bold border-2 uppercase italic bg-transparent">
                 <SelectValue />
               </SelectTrigger>
@@ -226,6 +273,11 @@ export function ImageConverterPage() {
                 ))}
               </SelectContent>
             </Select>
+            {format === "pdf" && (
+              <p className="ml-1 text-xs font-medium text-muted-foreground">
+                Images are packed into one PDF using current list order.
+              </p>
+            )}
           </div>
 
           {/* Empty drop zone */}
@@ -303,67 +355,84 @@ export function ImageConverterPage() {
                       className="overflow-hidden"
                     >
                       <div className={cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors",
-                        file.status === "done"       && "border-green-500/30 bg-green-500/5",
-                        file.status === "error"      && "border-destructive/30 bg-destructive/5",
+                        "rounded-xl border px-4 py-3 transition-colors",
+                        file.status === "done" && "border-green-500/30 bg-green-500/5",
+                        file.status === "error" && "border-destructive/30 bg-destructive/5",
                         file.status === "converting" && "border-primary/40 bg-primary/5",
-                        file.status === "skipped"    && "border-border/30 bg-muted/10",
-                        file.status === "pending"    && "border-border/50 bg-muted/20",
+                        file.status === "skipped" && "border-border/30 bg-muted/10",
+                        file.status === "pending" && "border-border/50 bg-muted/20",
                       )}>
-                        <FileImage className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <div className="flex items-center gap-3">
+                          <FileImage className="h-4 w-4 shrink-0 text-muted-foreground" />
 
-                        {/* Filename */}
-                        <span className="flex-1 text-sm font-medium truncate min-w-0" title={file.name}>
-                          {file.name}
-                        </span>
+                          {/* Filename */}
+                          <span className="flex-1 text-sm font-medium truncate min-w-0" title={file.name}>
+                            {file.name}
+                          </span>
 
-                        {/* Conversion arrow */}
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex-shrink-0 hidden sm:block">
-                          .{file.ext} → .{format}
-                        </span>
+                          {/* Conversion arrow */}
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 shrink-0 hidden sm:block">
+                            .{file.ext} → {format === "pdf" ? "PDF page" : `.${format}`}
+                          </span>
 
-                        {/* Status */}
-                        <span className="flex-shrink-0 w-28 flex justify-end items-center">
-                          {file.status === "pending" && (
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                              Ready
-                            </span>
-                          )}
-                          {file.status === "converting" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              {file.progress}%
-                            </span>
-                          )}
-                          {file.status === "done" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500">
-                              <CheckCircle className="h-3 w-3" />
-                              Done
-                            </span>
-                          )}
-                          {file.status === "skipped" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground" title="Same format — skipped">
-                              <Minus className="h-3 w-3" />
-                              Skipped
-                            </span>
-                          )}
-                          {file.status === "error" && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive" title={file.error}>
-                              <AlertCircle className="h-3 w-3" />
-                              Error
-                            </span>
-                          )}
-                        </span>
+                          {/* Status */}
+                          <span className="shrink-0 w-28 flex justify-end items-center">
+                            {file.status === "pending" && (
+                              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Ready
+                              </span>
+                            )}
+                            {file.status === "converting" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {file.progress}%
+                              </span>
+                            )}
+                            {file.status === "done" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500">
+                                <CheckCircle className="h-3 w-3" />
+                                Done
+                              </span>
+                            )}
+                            {file.status === "skipped" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground" title="Same format — skipped">
+                                <Minus className="h-3 w-3" />
+                                Skipped
+                              </span>
+                            )}
+                            {file.status === "error" && (
+                              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive" title={file.error}>
+                                <AlertCircle className="h-3 w-3" />
+                                Error
+                              </span>
+                            )}
+                          </span>
 
-                        {/* Remove */}
-                        <button
-                          type="button"
-                          onClick={() => removeFile(file.id)}
-                          disabled={isConverting && file.status === "converting"}
-                          className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors ml-1"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => removeFile(file.id)}
+                            disabled={isConverting && file.status === "converting"}
+                            className="shrink-0 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors ml-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {file.status === "done" && file.outputPath && (
+                          <div className="mt-3 flex items-center gap-3 border-t border-green-500/15 pt-3">
+                            <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground" title={file.outputPath}>
+                              {file.outputPath}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => showInFolder(file.outputPath!)}
+                              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-green-500/30 px-2.5 text-[11px] font-bold text-green-600 transition-colors hover:bg-green-500/10"
+                            >
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              Open
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -373,6 +442,31 @@ export function ImageConverterPage() {
           )}
 
           {/* Overall progress bar */}
+          <AnimatePresence>
+            {pdfOutputPath && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"
+              >
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-wider text-primary">PDF Ready</p>
+                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{pdfOutputPath}</p>
+                  <button
+                    type="button"
+                    onClick={() => showInFolder(pdfOutputPath)}
+                    className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                  >
+                    <FolderOpen className="h-3 w-3" />
+                    Show in Folder
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence>
             {isConverting && (
               <motion.div
@@ -412,7 +506,7 @@ export function ImageConverterPage() {
               ) : convertible.length === 0 ? (
                 "All Done"
               ) : (
-                `Convert ${convertible.length} File${convertible.length !== 1 ? "s" : ""}`
+                actionLabel
               )}
             </Button>
 
@@ -442,12 +536,11 @@ export function ImageConverterPage() {
         <CardFooter className="justify-center border-t border-border/50 bg-muted/10 py-8">
           <p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
             <CheckCircle className="h-4 w-4 text-primary" />
-            Fast Local Engine — Powered by EazyConvert
+            Fast Local Engine — Powered by KitBox
           </p>
         </CardFooter>
       </Card>
 
-      {toast && <SimpleToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </motion.div>
   );
 }
